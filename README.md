@@ -100,7 +100,7 @@ PhyschemOfActIngredientsセクションからの物理化学的情報抽出（�
 "active_ingredients": [
   {
     "general_name": "レボセチリジン塩酸塩（Levocetirizine Hydrochloride）",
-    "chemical_name": "2-（2-｛4-［（R）-（4-Chlorophenyl）phenylmethyl］piperazin-1-yl｝ethoxy）acetic acid dihydrochloride",
+    "chemical_name": "2-（2-［4-［（R）-（4-Chlorophenyl）phenylmethyl］piperazin-1-yl］ethoxy）acetic acid dihydrochloride",
     "molecular_formula": "C21H25ClN2O3・2HCl",
     "molecular_weight": "461.81",
     "nature": "白色の結晶性の粉末である。"
@@ -123,7 +123,6 @@ PhyschemOfActIngredientsセクションからの物理化学的情報抽出（�
 ```
 pmda-parse/
 ├── .gitignore                     # Git除外ファイル設定
-├── CLAUDE.md                      # 開発ガイドライン
 ├── README.md                      # このファイル
 ├── src/
 │   ├── pmda_json_generator.py      # メインの実行ファイル
@@ -324,7 +323,7 @@ python test_condition_dosage_final.py
 
 ## ライセンス
 
-このプロジェクトはMITライセンスの下で公開されています。
+このリポジトリはMITライセンスの下で公開されています。
 
 ## 貢献
 
@@ -341,4 +340,3 @@ python test_condition_dosage_final.py
 - このツールは医療従事者の情報検索支援を目的としており、医療判断の代替ではありません
 - 抽出されたデータの医療利用については、必ず最新の添付文書等で確認してください
 - PMDAデータの利用は関連する利用規約に従ってください
-

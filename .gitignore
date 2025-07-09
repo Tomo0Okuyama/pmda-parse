@@ -56,3 +56,6 @@ pmda_data*/
 test_*.py
 debug_*.py
 temp_*.py
+
+# Development documentation (local only)
+CLAUDE.md
