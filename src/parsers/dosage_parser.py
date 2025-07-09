@@ -257,6 +257,94 @@ class DosageParser:
         
         return dosages
 
+    def _parse_dosage_table(self, tbl_block: ET.Element) -> List[str]:
+        """
+        用法・用量テーブルをパースして構造化された情報を抽出する
+        
+        Args:
+            tbl_block: TblBlock要素
+            
+        Returns:
+            List[str]: 構造化された用法・用量情報
+        """
+        dosage_entries = []
+        
+        simple_table = tbl_block.find('.//pmda:SimpleTable', namespaces=self.namespace)
+        if simple_table is None:
+            return dosage_entries
+        
+        rows = simple_table.findall('.//pmda:SimpTblRow', namespaces=self.namespace)
+        if not rows:
+            return dosage_entries
+        
+        # ヘッダー行を取得
+        header_row = rows[0]
+        header_cells = header_row.findall('./pmda:SimpTblCell', namespaces=self.namespace)
+        
+        # ヘッダー情報を抽出
+        headers = []
+        for cell in header_cells:
+            cell_text = self._extract_table_cell_text(cell)
+            if cell_text:
+                headers.append(cell_text)
+        
+        # データ行を処理
+        for row in rows[1:]:  # ヘッダー行をスキップ
+            cells = row.findall('./pmda:SimpTblCell', namespaces=self.namespace)
+            
+            if not cells:
+                continue
+                
+            # 最初のセルは効能・効果（医療手技名）
+            procedure_cell = cells[0]
+            procedure_name = self._extract_table_cell_text(procedure_cell)
+            
+            if not procedure_name or procedure_name.strip() == '':
+                continue
+            
+            # 各薬剤濃度の用量情報を抽出
+            dosage_info = []
+            for i, cell in enumerate(cells[1:], 1):  # 最初のセルをスキップ
+                cell_text = self._extract_table_cell_text(cell)
+                if cell_text and cell_text.strip() != '－' and cell_text.strip() != '':
+                    if i < len(headers):
+                        # ヘッダー名（薬剤名）と用量を組み合わせ
+                        drug_name = headers[i].replace('<?enter?>', '').strip()
+                        dosage_info.append(f"{drug_name}:{cell_text}")
+                    else:
+                        dosage_info.append(cell_text)
+            
+            # 手技名と用量情報を組み合わせて構造化
+            if dosage_info:
+                combined_info = f"{procedure_name} → {' / '.join(dosage_info)}"
+                dosage_entries.append(combined_info)
+        
+        return dosage_entries
+
+    def _extract_table_cell_text(self, cell: ET.Element) -> str:
+        """
+        テーブルセルのテキスト内容を抽出する
+        
+        Args:
+            cell: SimpTblCell要素
+            
+        Returns:
+            str: セルのテキスト内容
+        """
+        text_parts = []
+        
+        # Detail/Lang要素からテキストを抽出
+        lang_elements = cell.findall('.//pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
+        for lang in lang_elements:
+            if lang.text:
+                text_parts.append(lang.text.strip())
+        
+        # <?enter?>を改行に変換
+        combined_text = ' '.join(text_parts)
+        combined_text = combined_text.replace('<?enter?>', '\n').strip()
+        
+        return combined_text
+
     def extract_dosages(self) -> List[Dict[str, str]]:
         """
         用法・用量を抽出し、ネストしたHeader構造を適切に処理する
@@ -278,35 +366,67 @@ class DosageParser:
             dose_admin_elements = info_dose_admin.findall('.//pmda:DoseAdmin', namespaces=self.namespace)
             
             for dose_admin in dose_admin_elements:
-                # SimpleList/Item要素を処理
-                item_elements = dose_admin.findall('./pmda:SimpleList/pmda:Item', namespaces=self.namespace)
+                # テーブル構造があるかチェック
+                tbl_blocks = dose_admin.findall('.//pmda:TblBlock', namespaces=self.namespace)
                 
-                for item in item_elements:
-                    # ネストしたItem構造を再帰的に処理
-                    nested_dosages = self._process_nested_items(item)
-                    
-                    # 重複チェックをして追加
-                    for dosage in nested_dosages:
-                        if not any(existing['text'] == dosage['text'] for existing in dosages):
-                            dosages.append(dosage)
-                
-                # 従来のDetail/Langタグからも用法・用量テキストを抽出（Item構造にない場合）
-                if not item_elements:
-                    detail_elements = dose_admin.findall('.//pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
-                    
-                    # DoseAdmin全体での条件ヘッダーを取得
-                    condition_header = extract_condition_header(dose_admin, self.namespace)
-                    
-                    for detail in detail_elements:
+                if tbl_blocks:
+                    # テーブル構造がある場合
+                    # まず基本的な説明文を抽出
+                    base_detail_elements = dose_admin.findall('./pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
+                    for detail in base_detail_elements:
                         if detail.text and detail.text.strip():
                             text = detail.text.strip()
-                            formatted_text = self._format_dosage_with_condition(text, condition_header)
-                            
-                            # 重複チェック
+                            if not any(dosage['text'] == text for dosage in dosages):
+                                dosages.append({'text': text})
+                    
+                    # 各テーブルブロックを処理
+                    for tbl_block in tbl_blocks:
+                        table_dosages = self._parse_dosage_table(tbl_block)
+                        for table_dosage in table_dosages:
+                            if not any(dosage['text'] == table_dosage for dosage in dosages):
+                                dosages.append({'text': table_dosage})
+                    
+                    # テーブル後のComment要素も処理
+                    comment_elements = dose_admin.findall('.//pmda:Comment/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
+                    for comment in comment_elements:
+                        if comment.text and comment.text.strip():
+                            text = comment.text.strip()
+                            # コメント形式で追加
+                            formatted_text = f"注意: {text}"
                             if not any(dosage['text'] == formatted_text for dosage in dosages):
-                                dosages.append({
-                                    'text': formatted_text,
-                                })
+                                dosages.append({'text': formatted_text})
+                
+                else:
+                    # テーブル構造がない場合は従来の処理
+                    # SimpleList/Item要素を処理
+                    item_elements = dose_admin.findall('./pmda:SimpleList/pmda:Item', namespaces=self.namespace)
+                    
+                    for item in item_elements:
+                        # ネストしたItem構造を再帰的に処理
+                        nested_dosages = self._process_nested_items(item)
+                        
+                        # 重複チェックをして追加
+                        for dosage in nested_dosages:
+                            if not any(existing['text'] == dosage['text'] for existing in dosages):
+                                dosages.append(dosage)
+                    
+                    # 従来のDetail/Langタグからも用法・用量テキストを抽出（Item構造にない場合）
+                    if not item_elements:
+                        detail_elements = dose_admin.findall('.//pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
+                        
+                        # DoseAdmin全体での条件ヘッダーを取得
+                        condition_header = extract_condition_header(dose_admin, self.namespace)
+                        
+                        for detail in detail_elements:
+                            if detail.text and detail.text.strip():
+                                text = detail.text.strip()
+                                formatted_text = self._format_dosage_with_condition(text, condition_header)
+                                
+                                # 重複チェック
+                                if not any(dosage['text'] == formatted_text for dosage in dosages):
+                                    dosages.append({
+                                        'text': formatted_text,
+                                    })
         
         # 従来の方法での検索も併用（InfoDoseAdminに含まれない用法・用量も取得）
         for element in self.root.iter():
