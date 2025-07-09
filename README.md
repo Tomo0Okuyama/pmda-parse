@@ -14,9 +14,9 @@ PMDAが公開している医薬品情報ファイル（XML/SGML）から医療�
 - **成分情報**: 有効成分、添加物の詳細
 - **製造元情報**: 製薬会社、承認番号等
 
-### プロジェクトの目的
+### リポジトリの目的
 
-このプロジェクトは、PMDAが公開している医薬品データベースから上記の情報を抽出・構造化し、医師が診断や診療から適切な医薬品を効率的に検索できるシステムの構築を支援します。
+このリポジトリは、PMDAが公開している医薬品データベースから上記の情報を抽出・構造化し、医師が診断や診療から適切な医薬品を効率的に検索できるシステムの構築を支援します。
 
 ### 抽出される情報
 
@@ -118,13 +118,16 @@ PhyschemOfActIngredientsセクションからの物理化学的情報抽出（�
 - PropertyForConstituentUnitsからの外観・性状情報フォールバック
 - DosageFormや薬効分類からの代替取得
 
-## プロジェクト構造
+## リポジトリ構造
 
 ```
 pmda-parse/
+├── .gitignore                     # Git除外ファイル設定
+├── CLAUDE.md                      # 開発ガイドライン
+├── README.md                      # このファイル
 ├── src/
 │   ├── pmda_json_generator.py      # メインの実行ファイル
-│   ├── parsers/
+│   ├── parsers/                    # 医療情報パーサーモジュール
 │   │   ├── base_parser.py          # 基本パーサー（必須情報抽出）
 │   │   ├── indication_parser.py    # 効能・効果パーサー
 │   │   ├── dosage_parser.py        # 用法・用量パーサー（複雑投与プロトコル対応）
@@ -135,9 +138,10 @@ pmda-parse/
 │   │   ├── composition_parser.py   # 成分・含量パーサー（構造化）
 │   │   ├── active_ingredient_parser.py  # 有効成分詳細パーサー
 │   │   └── xml_utils.py           # 共通XMLユーティリティ関数
-│   └── utils/
-├── pmda_all_20250629/             # PMDAデータディレクトリ
-└── pmda_medicines.json           # 出力JSONファイル
+│   └── utils/                      # ユーティリティモジュール
+│       └── file_processor.py       # ファイル処理・重複除去
+├── pmda_all_20250629/             # PMDAデータディレクトリ（.gitignoreで除外）
+└── pmda_medicines.json           # 出力JSONファイル（.gitignoreで除外）
 ```
 
 ## 使用方法
@@ -303,8 +307,9 @@ $ python src/pmda_json_generator.py
 ### 新しいパーサーの追加
 
 1. `src/parsers/`に新しいパーサーファイルを作成
-2. `BaseParser`クラスを継承（推奨）
+2. 共通のXMLユーティリティ関数を活用（`xml_utils.py`）
 3. `pmda_json_generator.py`でパーサーを呼び出し
+4. 新しい医療情報カテゴリに対応する場合はJSONスキーマを更新
 
 ### テスト実行
 
@@ -324,6 +329,12 @@ python test_condition_dosage_final.py
 ## 貢献
 
 プルリクエストやイシューの報告を歓迎します。医療情報の正確性と安全性を最優先に開発を進めています。
+
+### 開発方針
+- **安全性優先**: 医療データの精度と信頼性を最重視
+- **拡張性**: 新しい医薬品カテゴリや情報タイプへの対応
+- **型安全性**: TypeScript風のPython型注釈による堅牢性
+- **テスト駆動**: 重要な医療情報パーサーの動作検証
 
 ## 注意事項
 
