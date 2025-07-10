@@ -25,40 +25,32 @@ class InteractionParser:
         """
         interactions = []
         
-        # PrecautionsCombinationsタグから併用注意を抽出
-        combination_elements = self.root.findall('.//pmda:PrecautionsCombinations', namespaces=self.namespace)
+        # PrecautionsForCombinationsタグから併用注意を抽出
+        combination_elements = self.root.findall('.//pmda:PrecautionsForCombinations', namespaces=self.namespace)
         
         for combination_element in combination_elements:
-            # 各Drug要素から薬剤名と詳細情報を取得
-            drug_elements = combination_element.findall('.//pmda:Drug', namespaces=self.namespace)
+            # PrecautionsForCombination内の各Drug要素から薬剤名と詳細情報を取得
+            drug_elements = combination_element.findall('.//pmda:PrecautionsForCombination//pmda:Drug', namespaces=self.namespace)
             
             for drug in drug_elements:
-                # 薬剤名を取得（併用注意の対象薬剤）
-                drug_name_elements = drug.findall('.//pmda:DrugName/pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
+                # 薬剤名を取得
+                drug_name_element = drug.find('.//pmda:DrugName/pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
+                drug_name = drug_name_element.text.strip() if drug_name_element is not None and drug_name_element.text else ""
                 
-                for drug_name in drug_name_elements:
-                    if drug_name.text and drug_name.text.strip():
-                        interactions.append({
-                            'text': drug_name.text.strip(),
-                        })
+                # 機序・危険因子を取得
+                mechanism_element = drug.find('.//pmda:MechanismAndRiskFactors/pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
+                mechanism = mechanism_element.text.strip() if mechanism_element is not None and mechanism_element.text else ""
                 
-                # 臨床症状・措置方法を取得（併用時の症状と対処法）
-                symptoms_elements = drug.findall('.//pmda:ClinSymptomsAndMeasures/pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
-                
-                for symptoms in symptoms_elements:
-                    if symptoms.text and symptoms.text.strip():
-                        interactions.append({
-                            'text': f"臨床症状・措置: {symptoms.text.strip()}",
-                        })
-                
-                # 機序・危険因子を取得（相互作用のメカニズム）
-                mechanism_elements = drug.findall('.//pmda:MechanismAndRiskFactors/pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
-                
-                for mechanism in mechanism_elements:
-                    if mechanism.text and mechanism.text.strip():
-                        interactions.append({
-                            'text': f"機序・危険因子: {mechanism.text.strip()}",
-                        })
+                # 薬剤名と機序を組み合わせた相互作用情報を作成
+                if drug_name:
+                    if mechanism:
+                        interaction_text = f"薬物:{drug_name} - 機序:{mechanism}"
+                    else:
+                        interaction_text = f"薬物:{drug_name}"
+                    
+                    interactions.append({
+                        'text': interaction_text,
+                    })
         
         # DrugInteractionsタグから相互作用を抽出
         interaction_elements = self.root.findall('.//pmda:DrugInteractions', namespaces=self.namespace)
@@ -99,6 +91,5 @@ def parse_interactions(file_path: str) -> List[Dict[str, str]]:
         root = tree.getroot()
         parser = InteractionParser(root)
         return parser.extract_interactions()
-    except Exception as e:
-        print(f"Error parsing interactions in {file_path}: {e}")
+    except Exception:
         return []

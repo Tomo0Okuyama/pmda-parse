@@ -147,26 +147,30 @@ Extraction of physicochemical information from PhyschemOfActIngredients section 
 
 ```
 pmda-parse/
-├── .gitignore                     # Git exclusion file settings
-├── README.md                      # This file (Japanese)
-├── README_EN.md                   # This file (English)
+├── .gitignore                       # Git exclusion file settings
+├── README.md                        # Japanese README
+├── README_EN.md                     # This file (English)
+├── CLAUDE.md                        # Project guidelines for Claude Code
 ├── src/
-│   ├── pmda_json_generator.py      # Main execution file
-│   ├── parsers/                    # Medical information parser modules
-│   │   ├── base_parser.py          # Base parser (essential information extraction)
-│   │   ├── indication_parser.py    # Indications parser
-│   │   ├── dosage_parser.py        # Dosage parser (complex protocol support)
+│   ├── pmda_json_generator.py       # Main execution file (standard version)
+│   ├── pmda_json_generator_optimized.py  # Optimized version (parallel processing)
+│   ├── parsers/                     # Medical information parser modules
+│   │   ├── base_parser.py           # Base parser (essential information extraction)
+│   │   ├── indication_parser.py     # Indications parser
+│   │   ├── dosage_parser.py         # Dosage parser (complex protocol support)
 │   │   ├── contraindication_parser.py  # Contraindications parser
-│   │   ├── warning_parser.py       # Warnings and precautions parser
-│   │   ├── side_effect_parser.py   # Adverse reactions parser (severity support)
-│   │   ├── interaction_parser.py   # Drug interactions parser
-│   │   ├── composition_parser.py   # Composition parser (structured)
+│   │   ├── warning_parser.py        # Warnings and precautions parser
+│   │   ├── side_effect_parser.py    # Adverse reactions parser (severity support)
+│   │   ├── interaction_parser.py    # Drug interactions parser
+│   │   ├── composition_parser.py    # Composition parser (structured with deduplication)
 │   │   ├── active_ingredient_parser.py  # Active ingredient details parser
-│   │   └── xml_utils.py           # Common XML utility functions
-│   └── utils/                      # Utility modules
-│       └── file_processor.py       # File processing and duplicate removal
-├── pmda_all_20250629/             # PMDA data directory (excluded by .gitignore)
-└── pmda_medicines.json           # Output JSON file (excluded by .gitignore)
+│   │   ├── shared_xml_processor.py  # Optimized version only: Shared XML processor
+│   │   └── xml_utils.py            # Common XML utility functions
+│   └── utils/                       # Utility modules
+│       └── file_processor.py        # File processing and duplicate removal
+├── pmda_all_20250709/              # PMDA data directory (excluded by .gitignore)
+├── pmda_medicines.json             # Output JSON file (excluded by .gitignore)
+└── pmda_medicines_optimized.json   # Optimized version output (excluded by .gitignore)
 ```
 
 ## Usage
@@ -186,38 +190,129 @@ pip install -r requirements.txt
 
 ### Basic Execution
 
+#### Standard Version (Single Process)
 ```bash
 # Process all pharmaceutical data (default output: pmda_medicines.json)
-python src/pmda_json_generator.py
+python src/pmda_json_generator.py pmda_all_20250709
 
 # Specify output file
-python src/pmda_json_generator.py --output /path/to/output.json
-
-# Process specific directory data
-python src/pmda_json_generator.py --data-dir /path/to/pmda_data
+python src/pmda_json_generator.py pmda_all_20250709 --output custom_output.json
 ```
 
-### Execution Example
-
+#### Optimized Version (Parallel Processing)
 ```bash
-$ python src/pmda_json_generator.py
-File scanning started...
-Detecting and removing duplicate files...
-Processing pharmaceutical data...
+# Run optimized version (default output: pmda_medicines_optimized.json)
+python src/pmda_json_generator_optimized.py
 
-=== Processing Complete Summary ===
-Total pharmaceuticals: 11,464
-Duplicate-removed files: 8,234
-Output file: pmda_medicines.json (64.35 MB)
+# Run with custom settings
+python src/pmda_json_generator_optimized.py --input pmda_all_20250709 --output custom_output.json --workers 8
 
-Medical information statistics:
-- Indications: 45,123 items
-- Dosage and administration: 42,891 items
-- Adverse reactions: 89,456 items (Serious: 12,345, Non-serious: 77,111)
-- Contraindications: 23,567 items
-- Warnings and precautions: 34,789 items
-- Drug interactions: 18,234 items
-- Composition information: 56,789 items
+# Specify memory limit and batch size
+python src/pmda_json_generator_optimized.py --memory-limit 4096 --batch-size 200
+```
+
+### Execution Examples
+
+#### Standard Version Example
+```bash
+$ python src/pmda_json_generator.py pmda_all_20250709
+=== PMDA Pharmaceutical Data JSON Generation Started ===
+1. File discovery in progress...
+   Files found: 18,164
+2. Removing duplicate files...
+   Duplicate files: 6,700
+   Files to process: 11,464
+3. Processing pharmaceutical data...
+   Progress: 11400/11464 (99.4%)
+4. Data processing complete
+   Processed pharmaceuticals: 18,229
+5. JSON file output in progress...
+   Output complete: pmda_medicines.json
+   File size: 195.27 MB
+
+=== Processing Summary ===
+Files found: 18,164
+Duplicate files: 6,700
+Successfully processed files: 11,464
+Error files: 0
+Generated pharmaceutical entries: 18,229
+Processing time: 204.85 seconds
+Processing speed: 56.0 files/sec, 89.0 pharmaceutical entries/sec
+
+=== Extracted Clinical Information ===
+Indications     :   45,137 items
+Dosage          :   41,891 items
+Compositions    :   54,019 items
+Active ingredients:   15,095 items
+Contraindications:   72,475 items
+Side effects    :  110,324 items
+Interactions    :   62,801 items
+Warnings        :  186,865 items
+Total clinical information: 588,607 items
+
+=== Pharmaceuticals by Medical Information Type ===
+Indications     :   18,076 items ( 99.2%)
+Dosage          :   18,004 items ( 98.8%)
+Compositions    :   18,205 items ( 99.9%)
+Active ingredients:   15,095 items ( 82.8%)
+Contraindications:   14,397 items ( 79.0%)
+Side effects    :   13,794 items ( 75.7%)
+Interactions    :   15,831 items ( 86.9%)
+Warnings        :   16,252 items ( 89.2%)
+
+Pharmaceuticals with all types of medical information: 13,794 items
+```
+
+#### Optimized Version Example
+```bash
+$ python src/pmda_json_generator_optimized.py
+=== PMDA Pharmaceutical Data JSON Generation (Optimized) ===
+Parallel processing workers: 14
+Using process pool: Yes
+System information:
+  - CPU count: 14
+  - Total memory: 36.0GB
+  - Available memory: 14.2GB
+  - Memory limit: 2048MB
+
+1. Data file search in progress...
+   Files found: 18,164
+2. Removing duplicate files...
+   Duplicate files: 6,700
+   Files to process: 11,464
+3. Intelligent batch splitting in progress...
+   Auto-calculated batch size: 457
+   - Available memory: 14506.7MB
+   - CPU count: 14
+   - Memory limit: 2048MB
+   Total batches: 26
+   Average batch size: 440.9 files/batch
+4. Optimized parallel batch processing started...
+   Batch progress: 26/26 (100.0%) | Batch 25: 704 items | Speed: 3.2 batches/sec
+5. JSON output in progress...
+   Output file: pmda_medicines_optimized.json
+   File size: 195.27 MB
+
+=== Processing Summary (Optimized) ===
+Files found: 18,164
+Duplicate files: 6,700
+Successfully processed files: 11,464
+Error files: 0
+Generated pharmaceutical entries: 18,229
+Processing time: 23.07 seconds
+Parallel workers: 14
+
+=== Optimization Effects ===
+XML parse count: 11,464 times
+Traditional method parse count: 103,176 times (estimated)
+XML parse reduction rate: 88.9%
+
+=== Processing Speed ===
+File processing speed: 496.85 files/sec
+Pharmaceutical generation speed: 790.50 medicines/sec
+
+🚀 Optimized JSON generation completed: pmda_medicines_optimized.json
+⚡ High-speed processing achieved through batch splitting + parallel processing
 ```
 
 ## Output Data Format
@@ -327,11 +422,28 @@ Medical information statistics:
    - Preserves XML/SGML values without splitting (e.g., "250 international units")
    - Expresses meaning through JSON structure
 
-### Performance Optimization
+## Performance
 
+### Two Versions Available
+
+#### Standard Version (pmda_json_generator.py)
+- **Single Process Processing**: Stability focused
+- **Processing Time**: Approximately 3 minutes 30 seconds (18,229 pharmaceuticals)
+- **Memory Usage**: Moderate
+- **Compatibility**: Stable operation on all systems
+
+#### Optimized Version (pmda_json_generator_optimized.py)
+- **Parallel Processing**: Multi-process + intelligent batch splitting
+- **Processing Time**: Approximately 23 seconds (18,229 pharmaceuticals) **8.8x faster**
+- **XML Parse Reduction**: 88.9% reduction (using SharedXMLProcessor)
+- **Dynamic Load Balancing**: Optimization according to system resources
+- **Batch Processing**: Automatic batch size adjustment considering memory efficiency
+
+### Common Optimization Features
 - **File Duplicate Removal**: High-speed duplicate detection using SHA-256 hash
+- **Component Deduplication**: Automatic removal of duplicate components across categories
 - **Memory Efficiency**: Optimized for large dataset processing
-- **Parallel Processing Support**: Design prepared for future expansion
+- **Data Consistency**: Both versions produce completely identical results
 
 ## Development & Customization
 
@@ -342,15 +454,33 @@ Medical information statistics:
 3. Call parser in `pmda_json_generator.py`
 4. Update JSON schema when supporting new medical information categories
 
-### Running Tests
+### Testing and Validation
 
 ```bash
-# Testing with specific pharmaceuticals
+# Parser functionality tests
 python test_nested_dosage.py
 python test_side_effects.py
 
-# Testing condition-specific dosage
-python test_condition_dosage_final.py
+# Version consistency verification
+# Both versions confirmed to produce identical results
+```
+
+### Command Line Arguments
+
+#### Standard Version
+```bash
+python src/pmda_json_generator.py <pmda_directory> [--output OUTPUT_FILE]
+```
+
+#### Optimized Version
+```bash
+python src/pmda_json_generator_optimized.py [OPTIONS]
+  --input, -i          PMDA data directory (default: pmda_all_20250709)
+  --output, -o         Output JSON file (default: pmda_medicines_optimized.json)
+  --workers, -w        Number of parallel workers (default: min(CPU count, 16))
+  --batch-size, -b     Batch size (default: auto-calculated)
+  --memory-limit, -m   Memory limit in MB (default: 2048)
+  --use-threads        Use thread pool instead of process pool
 ```
 
 ## License

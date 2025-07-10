@@ -110,21 +110,30 @@ PhyschemOfActIngredientsセクションからの物理化学的情報抽出（�
 
 ```
 pmda-parse/
+├── .gitignore                       # Git除外設定
+├── README.md                        # このファイル（日本語）
+├── README_EN.md                     # 英語版README
+├── CLAUDE.md                        # Claude Code向けプロジェクト指針
 ├── src/
-│   ├── pmda_json_generator.py      # メインの実行ファイル
+│   ├── pmda_json_generator.py       # メイン実行ファイル（通常版）
+│   ├── pmda_json_generator_optimized.py  # 最適化版（並列処理・高速化）
 │   ├── parsers/
-│   │   ├── base_parser.py          # 基本パーサー（必須情報抽出）
-│   │   ├── indication_parser.py    # 効能・効果パーサー
-│   │   ├── dosage_parser.py        # 用法・用量パーサー（複雑投与プロトコル対応）
+│   │   ├── base_parser.py           # 基本パーサー（必須情報抽出）
+│   │   ├── indication_parser.py     # 効能・効果パーサー
+│   │   ├── dosage_parser.py         # 用法・用量パーサー（複雑投与プロトコル対応）
 │   │   ├── contraindication_parser.py  # 禁忌パーサー
-│   │   ├── warning_parser.py       # 警告・注意事項パーサー
-│   │   ├── side_effect_parser.py   # 副作用パーサー（重篤度対応）
-│   │   ├── interaction_parser.py   # 相互作用パーサー
-│   │   ├── composition_parser.py   # 成分・含量パーサー（構造化）
+│   │   ├── warning_parser.py        # 警告・注意事項パーサー
+│   │   ├── side_effect_parser.py    # 副作用パーサー（重篤度対応）
+│   │   ├── interaction_parser.py    # 相互作用パーサー
+│   │   ├── composition_parser.py    # 成分・含量パーサー（構造化・重複除去対応）
 │   │   ├── active_ingredient_parser.py  # 有効成分詳細パーサー
-│   │   └── xml_utils.py           # 共通XMLユーティリティ関数
+│   │   ├── shared_xml_processor.py  # 最適化版専用：共有XMLプロセッサー
+│   │   └── xml_utils.py            # 共通XMLユーティリティ関数
 │   └── utils/
-├── pmda_all_20250629/             # PMDAデータディレクトリ(PMDAよりダウンロード&展開)
+│       └── file_processor.py        # ファイル処理・重複除去ユーティリティ
+├── pmda_all_20250709/              # PMDAデータディレクトリ（.gitignoreで除外）
+├── pmda_medicines.json             # 出力JSONファイル（.gitignoreで除外）
+└── pmda_medicines_optimized.json   # 最適化版出力（.gitignoreで除外）
 ```
 
 ## 使用方法
@@ -144,52 +153,129 @@ pip install -r requirements.txt
 
 ### 基本実行
 
+#### 通常版（シングルプロセス）
 ```bash
 # 全医薬品データの処理（デフォルト出力: pmda_medicines.json）
-python src/pmda_json_generator.py
+python src/pmda_json_generator.py pmda_all_20250709
 
 # 出力ファイル指定
-python src/pmda_json_generator.py --output /path/to/output.json
+python src/pmda_json_generator.py pmda_all_20250709 --output custom_output.json
+```
 
-# 特定ディレクトリのデータ処理
-python src/pmda_json_generator.py --data-dir /path/to/pmda_data
+#### 最適化版（並列処理・高速化）
+```bash
+# 最適化版実行（デフォルト出力: pmda_medicines_optimized.json）
+python src/pmda_json_generator_optimized.py
+
+# カスタム設定での実行
+python src/pmda_json_generator_optimized.py --input pmda_all_20250709 --output custom_output.json --workers 8
+
+# メモリ制限とバッチサイズ指定
+python src/pmda_json_generator_optimized.py --memory-limit 4096 --batch-size 200
 ```
 
 ### 実行例
 
+#### 通常版実行例
 ```bash
-$ python src/pmda_json_generator.py
-ファイルスキャン開始...
-重複ファイル検出・除去中...
-医薬品データ処理中...
+$ python src/pmda_json_generator.py pmda_all_20250709
+=== PMDA医薬品データJSON生成開始 ===
+1. ファイル発見中...
+   発見されたファイル数: 18,164
+2. 重複ファイル除去中...
+   重複ファイル数: 6,700
+   処理対象ファイル数: 11,464
+3. 医薬品データ処理中...
+   進捗: 11400/11464 (99.4%)
+4. データ処理完了
+   処理された医薬品数: 18,229
+5. JSONファイル出力中...
+   出力完了: pmda_medicines.json
+   ファイルサイズ: 195.27 MB
 
 === 処理サマリー ===
 発見されたファイル数: 18,164
 重複ファイル数: 6,700
 処理成功ファイル数: 11,464
 処理エラーファイル数: 0
-医薬品数: 18,229
-処理時間: 205.65秒
+生成された医薬品エントリー数: 18,229
+処理時間: 204.85秒
+処理速度: 56.0ファイル/秒, 89.0医薬品エントリー/秒
 
 === 抽出された臨床情報 ===
-副作用: 110,324件
-用法・用量: 42,164件
-禁忌: 72,475件
-組成: 54,566件
-警告: 188,352件
-適応: 45,137件
-総臨床情報数: 513,018件
+効能・効果  :   45,137件
+用法・用量  :   41,891件
+成分・含量  :   54,019件
+有効成分    :   15,095件
+禁忌        :   72,475件
+副作用      :  110,324件
+相互作用    :   62,801件
+警告・注意  :  186,865件
+総臨床情報数:  588,607件
 
 === 医療情報種別毎の医薬品数 ===
-副作用を持つ医薬品: 13,794件 (75.7%)
-効能・効果を持つ医薬品: 18,076件 (99.2%)
-成分・含量を持つ医薬品: 18,205件 (99.9%)
-有効成分を持つ医薬品: 15,095件 (82.8%)
-用法・用量を持つ医薬品: 18,004件 (98.8%)
-禁忌を持つ医薬品: 14,397件 (79.0%)
-警告・注意を持つ医薬品: 16,252件 (89.2%)
+効能・効果:   18,076件 ( 99.2%)
+用法・用量:   18,004件 ( 98.8%)
+成分・含量:   18,205件 ( 99.9%)
+有効成分  :   15,095件 ( 82.8%)
+禁忌      :   14,397件 ( 79.0%)
+副作用    :   13,794件 ( 75.7%)
+相互作用  :   15,831件 ( 86.9%)
+警告・注意:   16,252件 ( 89.2%)
 
 全種類の医療情報を持つ医薬品: 13,794件
+```
+
+#### 最適化版実行例
+```bash
+$ python src/pmda_json_generator_optimized.py
+=== PMDA医薬品データJSON生成（最適化版） ===
+並列処理ワーカー数: 14
+プロセスプール使用: はい
+システム情報:
+  - CPU数: 14
+  - 総メモリ: 36.0GB
+  - 利用可能メモリ: 14.2GB
+  - メモリ制限: 2048MB
+
+1. データファイル検索中...
+   発見されたファイル数: 18,164
+2. 重複ファイル除去中...
+   重複ファイル数: 6,700
+   処理対象ファイル数: 11,464
+3. インテリジェントバッチ分割中...
+   バッチサイズ自動計算: 457
+   - 利用可能メモリ: 14506.7MB
+   - CPU数: 14
+   - メモリ制限: 2048MB
+   総バッチ数: 26
+   平均バッチサイズ: 440.9ファイル/バッチ
+4. 最適化並列バッチ処理開始...
+   バッチ進捗: 26/26 (100.0%) | バッチ25: 704件 | 速度: 3.2 batches/sec
+5. JSON出力中...
+   出力ファイル: pmda_medicines_optimized.json
+   ファイルサイズ: 195.27 MB
+
+=== 処理サマリー（最適化版） ===
+発見されたファイル数: 18,164
+重複ファイル数: 6,700
+処理成功ファイル数: 11,464
+処理エラーファイル数: 0
+生成された医薬品エントリー数: 18,229
+処理時間: 23.07秒
+並列ワーカー数: 14
+
+=== 最適化効果 ===
+XMLパース回数: 11,464回
+従来方式のパース回数: 103,176回（予想）
+XMLパース削減率: 88.9%
+
+=== 処理速度 ===
+ファイル処理速度: 496.85 files/sec
+医薬品生成速度: 790.50 medicines/sec
+
+🚀 最適化JSON生成が完了しました: pmda_medicines_optimized.json
+⚡ バッチ分割 + 並列処理による高速化を実現
 ```
 
 ## 出力データ形式
@@ -293,11 +379,28 @@ $ python src/pmda_json_generator.py
    - XML/SGMLの値を分割せずに保持（例：「250国際単位」）
    - JSONの構造で意味を表現
 
-### パフォーマンス最適化
+## パフォーマンス
 
+### 2つのバージョンを提供
+
+#### 通常版（pmda_json_generator.py）
+- **シングルプロセス処理**: 安定性重視
+- **処理時間**: 約3分30秒（18,229医薬品）
+- **メモリ使用量**: 中程度
+- **互換性**: 全システムで安定動作
+
+#### 最適化版（pmda_json_generator_optimized.py）
+- **並列処理**: マルチプロセス + インテリジェントバッチ分割
+- **処理時間**: 約23秒（18,229医薬品）**8.8倍高速化**
+- **XMLパース削減**: 88.9%削減（SharedXMLProcessor使用）
+- **動的負荷分散**: システムリソースに応じた最適化
+- **バッチ処理**: メモリ効率を考慮した自動バッチサイズ調整
+
+### 共通最適化機能
 - **ファイル重複除去**: SHA-256ハッシュによる高速重複検出
+- **成分重複除去**: カテゴリ間での重複成分自動除去
 - **メモリ効率**: 大規模データセット処理に最適化
-- **並列処理対応**: 将来の拡張に備えた設計
+- **データ整合性**: 両バージョンで完全に同一の結果を出力
 
 ## 開発・カスタマイズ
 
@@ -307,15 +410,33 @@ $ python src/pmda_json_generator.py
 2. `BaseParser`クラスを継承（推奨）
 3. `pmda_json_generator.py`でパーサーを呼び出し
 
-### テスト実行
+### テスト・検証
 
 ```bash
-# 特定の医薬品でのテスト
+# パーサー機能テスト
 python test_nested_dosage.py
 python test_side_effects.py
 
-# 条件固有用法・用量のテスト
-python test_condition_dosage_zfinal.py
+# バージョン間整合性確認
+# 両バージョンが同一結果を出力することを確認済み
+```
+
+### コマンドライン引数
+
+#### 通常版
+```bash
+python src/pmda_json_generator.py <pmda_directory> [--output OUTPUT_FILE]
+```
+
+#### 最適化版
+```bash
+python src/pmda_json_generator_optimized.py [OPTIONS]
+  --input, -i          PMDAデータディレクトリ（デフォルト: pmda_all_20250709）
+  --output, -o         出力JSONファイル（デフォルト: pmda_medicines_optimized.json）
+  --workers, -w        並列ワーカー数（デフォルト: CPU数と16の小さい方）
+  --batch-size, -b     バッチサイズ（デフォルト: 自動計算）
+  --memory-limit, -m   メモリ制限MB（デフォルト: 2048）
+  --use-threads        プロセスプールの代わりにスレッドプール使用
 ```
 
 ## ライセンス

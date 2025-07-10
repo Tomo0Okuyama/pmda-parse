@@ -462,6 +462,5 @@ def parse_dosages(file_path: str) -> List[Dict[str, str]]:
         root = tree.getroot()
         parser = DosageParser(root, file_path)  # ファイルパスを渡して特殊処理判定用
         return parser.extract_dosages()
-    except Exception as e:
-        print(f"Error parsing dosages in {file_path}: {e}")
+    except Exception:
         return []

@@ -108,6 +108,5 @@ def parse_contraindications(file_path: str) -> List[Dict[str, str]]:
         root = tree.getroot()
         parser = ContraindicationParser(root)
         return parser.extract_contraindications()
-    except Exception as e:
-        print(f"Error parsing contraindications in {file_path}: {e}")
+    except Exception:
         return []

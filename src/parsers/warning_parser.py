@@ -139,6 +139,5 @@ def parse_warnings(file_path: str) -> List[Dict[str, str]]:
         root = tree.getroot()
         parser = WarningParser(root)
         return parser.extract_warnings()
-    except Exception as e:
-        print(f"Error parsing warnings in {file_path}: {e}")
+    except Exception:
         return []

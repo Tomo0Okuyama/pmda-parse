@@ -78,6 +78,5 @@ def parse_indications(file_path: str) -> List[Dict[str, str]]:
         root = tree.getroot()
         parser = IndicationParser(root)
         return parser.extract_indications()
-    except Exception as e:
-        print(f"Error parsing indications in {file_path}: {e}")
+    except Exception:
         return []

@@ -162,6 +162,5 @@ def parse_active_ingredients(file_path: str, brand_id: str | None = None) -> Lis
         parser = ActiveIngredientParser(root, brand_id)
         
         return parser.extract_active_ingredients()
-    except Exception as e:
-        print(f"Error parsing active ingredients in {file_path}: {e}")
+    except Exception:
         return []

@@ -247,11 +247,12 @@ class CompositionParser:
     
     def _remove_duplicates(self, result: Dict[str, List[Dict[str, str]]]):
         """
-        重複を除去する
+        重複を除去する（クロスカテゴリの重複も含む）
         
         Args:
             result (Dict): 成分情報の辞書
         """
+        # まず各カテゴリ内での重複を除去
         for category in result:
             seen = set()
             unique_items = []
@@ -272,6 +273,25 @@ class CompositionParser:
                     unique_items.append(item)
             
             result[category] = unique_items
+        
+        # クロスカテゴリでの重複をチェック（有効成分がother_componentsにも現れる場合）
+        active_ingredient_names = set()
+        for item in result["active_ingredients"]:
+            ingredient_name = item.get("ingredient_name", "")
+            if ingredient_name:
+                active_ingredient_names.add(ingredient_name)
+        
+        # other_componentsから、有効成分として既に登録されているものを除去
+        filtered_other_components = []
+        for item in result["other_components"]:
+            category_name = item.get("category_name", "")
+            content_title = item.get("content_title", "")
+            
+            # CategoryNameまたはContentTitleが有効成分名と一致する場合は除去
+            if category_name not in active_ingredient_names and content_title not in active_ingredient_names:
+                filtered_other_components.append(item)
+        
+        result["other_components"] = filtered_other_components
     
     def _is_valid_composition_text(self, text: str) -> bool:
         """
@@ -346,8 +366,7 @@ def parse_compositions(file_path: str, brand_id: Optional[str] = None) -> List[D
         
         return compositions
         
-    except Exception as e:
-        print(f"Error parsing compositions in {file_path}: {e}")
+    except Exception:
         return []
 
 def parse_compositions_structured(file_path: str, brand_id: Optional[str] = None) -> Dict[str, List[Dict[str, str]]]:
@@ -370,6 +389,5 @@ def parse_compositions_structured(file_path: str, brand_id: Optional[str] = None
         root = tree.getroot()
         parser = CompositionParser(root, brand_id, file_path)
         return parser.extract_compositions()
-    except Exception as e:
-        print(f"Error parsing compositions in {file_path}: {e}")
+    except Exception:
         return {"active_ingredients": [], "additives": [], "other_components": []}

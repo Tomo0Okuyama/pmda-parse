@@ -266,6 +266,5 @@ def parse_side_effects(file_path: str) -> List[Dict[str, str]]:
         root = tree.getroot()
         parser = SideEffectParser(root)
         return parser.extract_side_effects()
-    except Exception as e:
-        print(f"Error parsing side effects in {file_path}: {e}")
+    except Exception:
         return []

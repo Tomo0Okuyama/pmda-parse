@@ -10,6 +10,9 @@ import os
 import json
 import time
 import argparse
+import glob
+import re
+import sys
 from typing import Dict, List, Any, Optional
 from collections import defaultdict
 
@@ -124,7 +127,7 @@ class PMDAJSONGenerator:
         
         # 統計情報は最終的な配列の長さで更新
         if indication_texts:
-            self.statistics['vectors_count']['効能・効果'] += len(indication_texts)
+            self.statistics['vectors_count']['indications'] += len(indication_texts)
         
         if indication_texts:
             clinical_info['indications'] = indication_texts
@@ -141,7 +144,7 @@ class PMDAJSONGenerator:
         
         # 統計情報は最終的な配列の長さで更新
         if dosage_texts:
-            self.statistics['vectors_count']['用法・用量'] += len(dosage_texts)
+            self.statistics['vectors_count']['dosage'] += len(dosage_texts)
         
         if dosage_texts:
             clinical_info['dosage'] = dosage_texts
@@ -155,7 +158,10 @@ class PMDAJSONGenerator:
             if text and text not in seen_contraindications:  # 空でなく、重複していなければ取得
                 contraindication_texts.append(text)
                 seen_contraindications.add(text)
-                self.statistics['vectors_count']['禁忌'] += 1
+        
+        # 統計情報は最終的な配列の長さで更新
+        if contraindication_texts:
+            self.statistics['vectors_count']['contraindications'] += len(contraindication_texts)
         
         if contraindication_texts:
             clinical_info['contraindications'] = contraindication_texts
@@ -169,7 +175,10 @@ class PMDAJSONGenerator:
             if text and text not in seen_warnings:  # 空でなく、重複していなければ取得
                 warning_texts.append(text)
                 seen_warnings.add(text)
-                self.statistics['vectors_count']['警告・注意'] += 1
+        
+        # 統計情報は最終的な配列の長さで更新
+        if warning_texts:
+            self.statistics['vectors_count']['warnings'] += len(warning_texts)
         
         if warning_texts:
             clinical_info['warnings'] = warning_texts
@@ -183,7 +192,10 @@ class PMDAJSONGenerator:
             if text and text not in seen_side_effects:  # 空でなく、重複していなければ取得
                 side_effect_texts.append(text)
                 seen_side_effects.add(text)
-                self.statistics['vectors_count']['副作用'] += 1
+        
+        # 統計情報は最終的な配列の長さで更新
+        if side_effect_texts:
+            self.statistics['vectors_count']['side_effects'] += len(side_effect_texts)
         
         if side_effect_texts:
             clinical_info['side_effects'] = side_effect_texts
@@ -197,7 +209,10 @@ class PMDAJSONGenerator:
             if text and text not in seen_interactions:  # 空でなく、重複していなければ取得
                 interaction_texts.append(text)
                 seen_interactions.add(text)
-                self.statistics['vectors_count']['相互作用'] += 1
+        
+        # 統計情報は最終的な配列の長さで更新
+        if interaction_texts:
+            self.statistics['vectors_count']['interactions'] += len(interaction_texts)
         
         if interaction_texts:
             clinical_info['interactions'] = interaction_texts
@@ -236,7 +251,7 @@ class PMDAJSONGenerator:
         
         # 統計情報は最終的な配列の長さで更新
         if composition_texts:
-            self.statistics['vectors_count']['成分・含量'] += len(composition_texts)
+            self.statistics['vectors_count']['compositions'] += len(composition_texts)
         
         if composition_texts:
             clinical_info['compositions'] = composition_texts
@@ -258,26 +273,27 @@ class PMDAJSONGenerator:
         
         if filtered_active_ingredients:
             clinical_info['active_ingredients'] = filtered_active_ingredients
-            self.statistics['medicines_with_clinical_info']['有効成分'] += 1
+            self.statistics['medicines_with_clinical_info']['active_ingredients'] += 1
+            self.statistics['vectors_count']['active_ingredients'] += len(filtered_active_ingredients)
         
         # 臨床情報を設定
         medicine_data['clinical_info'] = clinical_info
         
         # 各医療情報項目を持つ医薬品数をカウント（統計情報更新）
         if clinical_info.get('indications'):
-            self.statistics['medicines_with_clinical_info']['効能・効果'] += 1
+            self.statistics['medicines_with_clinical_info']['indications'] += 1
         if clinical_info.get('dosage'):
-            self.statistics['medicines_with_clinical_info']['用法・用量'] += 1
+            self.statistics['medicines_with_clinical_info']['dosage'] += 1
         if clinical_info.get('contraindications'):
-            self.statistics['medicines_with_clinical_info']['禁忌'] += 1
+            self.statistics['medicines_with_clinical_info']['contraindications'] += 1
         if clinical_info.get('warnings'):
-            self.statistics['medicines_with_clinical_info']['警告・注意'] += 1
+            self.statistics['medicines_with_clinical_info']['warnings'] += 1
         if clinical_info.get('side_effects'):
-            self.statistics['medicines_with_clinical_info']['副作用'] += 1
+            self.statistics['medicines_with_clinical_info']['side_effects'] += 1
         if clinical_info.get('interactions'):
-            self.statistics['medicines_with_clinical_info']['相互作用'] += 1
+            self.statistics['medicines_with_clinical_info']['interactions'] += 1
         if clinical_info.get('compositions'):
-            self.statistics['medicines_with_clinical_info']['成分・含量'] += 1
+            self.statistics['medicines_with_clinical_info']['compositions'] += 1
         
         # 古いvectorsキーを削除（後方互換性のため）
         if 'vectors' in medicine_data:
@@ -395,17 +411,6 @@ class PMDAJSONGenerator:
         print("\n=== 抽出された臨床情報 ===")
         total_clinical_data = sum(self.statistics['vectors_count'].values())
         
-        # 日本語名と英語名のマッピング
-        info_type_display = {
-            '効能・効果': '効能・効果 (indications)',
-            '用法・用量': '用法・用量 (dosage)',
-            '禁忌': '禁忌 (contraindications)',
-            '警告・注意': '警告・注意 (warnings)',
-            '副作用': '副作用 (side_effects)',
-            '相互作用': '相互作用 (interactions)',
-            '成分・含量': '成分・含量 (compositions)',
-            '有効成分': '有効成分 (active_ingredients)'
-        }
         
         # 日本語文字幅を考慮した表示幅計算
         def get_display_width(text):
@@ -418,32 +423,56 @@ class PMDAJSONGenerator:
                     width += 1
             return width
         
-        max_width = max(get_display_width(info_type_display.get(k, k)) for k in self.statistics['vectors_count'].keys())
+        # 最適化版と同じ順序に変更
+        clinical_info_order = [
+            ('効能・効果', 'indications'),
+            ('用法・用量', 'dosage'),
+            ('成分・含量', 'compositions'),
+            ('有効成分', 'active_ingredients'),
+            ('禁忌', 'contraindications'),
+            ('副作用', 'side_effects'),
+            ('相互作用', 'interactions'),
+            ('警告・注意', 'warnings')
+        ]
+        
+        # 最大幅を計算
+        max_width = max(get_display_width(display_name) for display_name, _ in clinical_info_order)
         max_width = max(max_width, get_display_width('総臨床情報数'))
         
-        for info_type, count in sorted(self.statistics['vectors_count'].items()):
-            display_name = info_type_display.get(info_type, info_type)
+        for display_name, key in clinical_info_order:
+            count = self.statistics['vectors_count'].get(key, 0)
             current_width = get_display_width(display_name)
             padding = max_width - current_width
-            print(f"{display_name}{' ' * padding}: {count:>8,}件")
+            print(f"{display_name}{' ' * padding}: {count:8,}件")
         
+        total_vectors = sum(self.statistics['vectors_count'].values())
         total_width = get_display_width('総臨床情報数')
         total_padding = max_width - total_width
-        print(f"{'総臨床情報数'}{' ' * total_padding}: {total_clinical_data:>8,}件")
+        print(f"総臨床情報数{' ' * total_padding}: {total_vectors:8,}件")
         
         print("\n=== 医療情報種別毎の医薬品数 ===")
-        total_medicines = self.statistics['medicines_count']
         
-        # 最長の項目名の長さを計算（「を持つ医薬品」を含む、日本語文字幅考慮）
-        max_medicine_width = max(get_display_width(info_type_display.get(k, k) + 'を持つ医薬品') for k in self.statistics['medicines_with_clinical_info'].keys())
+        # 最適化版と同じ順序に変更
+        info_order = [
+            ('効能・効果', 'indications'),
+            ('用法・用量', 'dosage'),
+            ('成分・含量', 'compositions'),
+            ('有効成分', 'active_ingredients'),
+            ('禁忌', 'contraindications'),
+            ('副作用', 'side_effects'),
+            ('相互作用', 'interactions'),
+            ('警告・注意', 'warnings')
+        ]
         
-        for info_type, count in sorted(self.statistics['medicines_with_clinical_info'].items()):
-            percentage = (count / total_medicines * 100) if total_medicines > 0 else 0
-            display_name = info_type_display.get(info_type, info_type)
-            full_label = f"{display_name}を持つ医薬品"
-            current_width = get_display_width(full_label)
-            padding = max_medicine_width - current_width
-            print(f"{full_label}{' ' * padding}: {count:>8,}件 ({percentage:>5.1f}%)")
+        # 最大幅を計算
+        max_width_info = max(get_display_width(display_name) for display_name, _ in info_order)
+        
+        for display_name, key in info_order:
+            count = self.statistics['medicines_with_clinical_info'].get(key, 0)
+            percentage = (count / self.statistics['medicines_count']) * 100 if self.statistics['medicines_count'] > 0 else 0
+            current_width = get_display_width(display_name)
+            padding = max_width_info - current_width
+            print(f"{display_name}{' ' * padding}: {count:8,}件 ({percentage:5.1f}%)")
         
         # 全ての医療情報を持つ医薬品数
         medicines_with_all_info = 0
@@ -474,6 +503,59 @@ class PMDAJSONGenerator:
             print(f"エラーが発生しました: {e}")
             raise
 
+def find_pmda_directories() -> List[str]:
+    """
+    カレントディレクトリでpmda_all_nnnnnnnn形式のディレクトリを検索
+    
+    Returns:
+        List[str]: 見つかったPMDAディレクトリのリスト
+    """
+    pattern = 'pmda_all_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+    pmda_dirs = []
+    
+    for item in glob.glob(pattern):
+        if os.path.isdir(item):
+            # ディレクトリ名が正確にパターンに一致するかチェック
+            dir_name = os.path.basename(item)
+            if re.match(r'^pmda_all_\d{8}$', dir_name):
+                pmda_dirs.append(item)
+    
+    return sorted(pmda_dirs)  # 日付順でソート
+
+def auto_detect_pmda_directory() -> str:
+    """
+    PMDAディレクトリを自動検出
+    
+    Returns:
+        str: 検出されたディレクトリパス
+        
+    Raises:
+        SystemExit: ディレクトリが見つからないか、複数見つかった場合
+    """
+    pmda_dirs = find_pmda_directories()
+    
+    if len(pmda_dirs) == 0:
+        print("エラー: pmda_all_nnnnnnnn形式のディレクトリが見つかりません")
+        print("\n使用方法:")
+        print("1. PMDAからデータをダウンロードし、pmda_all_nnnnnnnn形式で展開してください")
+        print("   例: pmda_all_20250709")
+        print("2. またはディレクトリパスを引数で明示的に指定してください")
+        print("   例: python src/pmda_json_generator.py /path/to/pmda_data")
+        sys.exit(1)
+    
+    if len(pmda_dirs) > 1:
+        print(f"エラー: 複数のPMDAディレクトリが見つかりました: {', '.join(pmda_dirs)}")
+        print("\n使用方法:")
+        print("使用するディレクトリを引数で明示的に指定してください")
+        print("例:")
+        for pmda_dir in pmda_dirs:
+            print(f"  python src/pmda_json_generator.py {pmda_dir}")
+        sys.exit(1)
+    
+    detected_dir = pmda_dirs[0]
+    print(f"PMDAディレクトリを自動検出しました: {detected_dir}")
+    return detected_dir
+
 def main():
     """
     メイン関数：コマンドライン引数を処理して実行
@@ -483,9 +565,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用例:
-  python pmda_json_generator.py pmda_all_20250629
-  python pmda_json_generator.py pmda_all_20250629 -o custom_output.json
-  python pmda_json_generator.py /path/to/pmda_data --output /path/to/output.json
+  # カレントディレクトリのpmda_all_nnnnnnnnを自動検出
+  python src/pmda_json_generator.py
+  
+  # 特定のディレクトリを指定
+  python src/pmda_json_generator.py pmda_all_20250709
+  
+  # 出力ファイルを指定
+  python src/pmda_json_generator.py pmda_all_20250709 -o custom_output.json
   
 デフォルトではカレントディレクトリにpmda_medicines.jsonとして出力されます。
         """
@@ -493,7 +580,9 @@ def main():
     
     parser.add_argument(
         'pmda_directory',
-        help='PMDAデータディレクトリのパス（例: pmda_all_20250629）'
+        nargs='?',
+        default=None,
+        help='PMDAデータディレクトリのパス（省略時は自動検出）'
     )
     
     parser.add_argument(
@@ -504,20 +593,29 @@ def main():
     
     args = parser.parse_args()
     
-    # ディレクトリの存在確認
-    if not os.path.exists(args.pmda_directory):
-        print(f"エラー: 指定されたディレクトリが存在しません: {args.pmda_directory}")
-        return 1
-    
-    # SGML_XMLディレクトリの確認
-    sgml_xml_path = os.path.join(args.pmda_directory, 'SGML_XML')
-    if not os.path.exists(sgml_xml_path):
-        print(f"エラー: SGML_XMLディレクトリが見つかりません: {sgml_xml_path}")
-        print(f"指定されたディレクトリがPMDAデータディレクトリか確認してください。")
-        return 1
+    # 入力ディレクトリの決定
+    if args.pmda_directory is None:
+        # 自動検出モード
+        pmda_directory = auto_detect_pmda_directory()
+    else:
+        # 明示的指定モード
+        pmda_directory = args.pmda_directory
+        if not os.path.exists(pmda_directory):
+            print(f"エラー: 指定されたディレクトリが存在しません: {pmda_directory}")
+            print("\n使用方法:")
+            print("1. 正しいディレクトリパスを指定してください")
+            print("2. または引数を省略して自動検出を使用してください")
+            return 1
+        
+        # SGML_XMLディレクトリの確認
+        sgml_xml_path = os.path.join(pmda_directory, 'SGML_XML')
+        if not os.path.exists(sgml_xml_path):
+            print(f"エラー: SGML_XMLディレクトリが見つかりません: {sgml_xml_path}")
+            print(f"指定されたディレクトリがPMDAデータディレクトリか確認してください。")
+            return 1
     
     # JSONジェネレーターを作成して実行
-    generator = PMDAJSONGenerator(args.pmda_directory, args.output)
+    generator = PMDAJSONGenerator(pmda_directory, args.output)
     generator.generate()
     
     return 0

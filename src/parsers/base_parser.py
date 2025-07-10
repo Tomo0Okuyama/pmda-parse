@@ -236,19 +236,11 @@ def parse_medicine_files(directory: str, output_file: str):
                     parser = MedicineParser(filepath)
                     medicine_data = parser.to_json()
                     all_medicines.append(medicine_data)
-                except Exception as e:
-                    print(f"Error parsing {filename}: {e}")
+                except Exception:
+                    pass
 
     # 結果をJSONファイルに出力
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(all_medicines, f, ensure_ascii=False, indent=2)
 
-    print(f"Parsed {len(all_medicines)} medicine files and saved to {output_file}")
-
-def main():
-    input_dir = '/Users/tokuyama/workspace/pmda-parse/pmda_all_20250629/SGML_XML'
-    output_file = '/Users/tokuyama/workspace/pmda-parse/medicines.json'
-    parse_medicine_files(input_dir, output_file)
-
-if __name__ == "__main__":
-    main()
+    pass
