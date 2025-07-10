@@ -150,34 +150,42 @@ pmda-parse/
 ├── .gitignore                       # Git exclusion file settings
 ├── README.md                        # Japanese README
 ├── README_EN.md                     # This file (English)
-├── CLAUDE.md                        # Project guidelines for Claude Code
-├── src/
-│   ├── pmda_json_generator.py       # Main execution file (standard version)
-│   ├── pmda_json_generator_optimized.py  # Optimized version (parallel processing)
-│   ├── parsers/                     # Medical information parser modules
-│   │   ├── base_parser.py           # Base parser (essential information extraction)
-│   │   ├── indication_parser.py     # Indications parser
-│   │   ├── dosage_parser.py         # Dosage parser (complex protocol support)
-│   │   ├── contraindication_parser.py  # Contraindications parser
-│   │   ├── warning_parser.py        # Warnings and precautions parser
-│   │   ├── side_effect_parser.py    # Adverse reactions parser (severity support)
-│   │   ├── interaction_parser.py    # Drug interactions parser
-│   │   ├── composition_parser.py    # Composition parser (structured with deduplication)
-│   │   ├── active_ingredient_parser.py  # Active ingredient details parser
-│   │   ├── shared_xml_processor.py  # Optimized version only: Shared XML processor
-│   │   └── xml_utils.py            # Common XML utility functions
-│   └── utils/                       # Utility modules
-│       └── file_processor.py        # File processing and duplicate removal
-├── pmda_all_20250709/              # PMDA data directory (excluded by .gitignore)
-├── pmda_medicines.json             # Output JSON file (excluded by .gitignore)
-└── pmda_medicines_optimized.json   # Optimized version output (excluded by .gitignore)
+├── requirements.txt                 # Python dependencies definition
+└── src/
+    ├── pmda_json_generator.py       # Main execution file (standard version)
+    ├── pmda_json_generator_optimized.py  # Optimized version (parallel processing)
+    ├── parsers/
+    │   ├── base_parser.py           # Base parser (essential information extraction)
+    │   ├── indication_parser.py     # Indications parser
+    │   ├── dosage_parser.py         # Dosage parser (complex protocol support)
+    │   ├── contraindication_parser.py  # Contraindications parser
+    │   ├── warning_parser.py        # Warnings and precautions parser
+    │   ├── side_effect_parser.py    # Adverse reactions parser (severity support)
+    │   ├── interaction_parser.py    # Drug interactions parser
+    │   ├── composition_parser.py    # Composition parser (structured with deduplication)
+    │   ├── active_ingredient_parser.py  # Active ingredient details parser
+    │   ├── shared_xml_processor.py  # Optimized version only: Shared XML processor
+    │   └── xml_utils.py             # Common XML utility functions
+    └── utils/
+        └── file_processor.py        # File processing and duplicate removal
 ```
+
+※ PMDA data directories (`pmda_all_nnnnnnnn/`) and JSON output files (`*.json`) are excluded by `.gitignore` and only used locally.
 
 ## Usage
 
 ### Environment Setup
 
+#### Python Requirements
+- Python 3.7 or higher
+- External dependency: `psutil` (for system monitoring, used in optimized version)
+
+#### Setup Instructions
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd pmda-parse
+
 # Create and activate virtual environment
 python -m venv .venv
 source .venv/bin/activate  # Linux/Mac
@@ -187,6 +195,11 @@ source .venv/bin/activate  # Linux/Mac
 # Install dependencies
 pip install -r requirements.txt
 ```
+
+#### About Dependencies
+This project uses a lightweight design, primarily relying on Python's standard library:
+- **Standard Library**: xml.etree.ElementTree, json, os, argparse, etc.
+- **External Library**: psutil (only for system monitoring in optimized version)
 
 ### Basic Execution
 

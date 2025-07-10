@@ -1,0 +1,22 @@
+# PMDA Medical Drug Information Parser Requirements
+# 
+# External dependencies for the PMDA parser project.
+# Most functionality uses Python standard library modules.
+
+# System and process monitoring (used in optimized version)
+psutil>=5.8.0
+
+# Note: The following are standard library modules and don't need to be installed:
+# - xml.etree.ElementTree (XML parsing)
+# - json (JSON handling)
+# - os, sys (system operations)
+# - argparse (command line argument parsing)
+# - glob, re (file pattern matching and regex)
+# - typing (type hints)
+# - collections (defaultdict)
+# - concurrent.futures (parallel processing)
+# - multiprocessing (process management)
+# - threading (thread management)
+# - hashlib (file hashing)
+# - time (timing operations)
+# - gc (garbage collection)
