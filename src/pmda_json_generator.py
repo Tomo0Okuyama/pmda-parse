@@ -13,7 +13,7 @@ import argparse
 from typing import Dict, List, Any, Optional
 from collections import defaultdict
 
-# パーサーのインポート
+# パーサーのインポート - 各医療情報カテゴリ専用パーサー
 from parsers.base_parser import MedicineParser
 from parsers.indication_parser import parse_indications
 from parsers.dosage_parser import parse_dosages
@@ -65,7 +65,7 @@ class PMDAJSONGenerator:
             # ベースパーサーで基本情報を取得
             base_parser = MedicineParser(file_path)
             
-            # 全ての医薬品ブランド情報を取得
+            # 全ての医薬品ブランド情報を取得（複数医薬品対応）
             all_brands = base_parser.extract_all_brands()
             
             if not all_brands:
@@ -121,7 +121,10 @@ class PMDAJSONGenerator:
             if text and text not in seen_indications:  # 空でなく、重複していなければ取得
                 indication_texts.append(text)
                 seen_indications.add(text)
-                self.statistics['vectors_count']['適応'] += 1
+        
+        # 統計情報は最終的な配列の長さで更新
+        if indication_texts:
+            self.statistics['vectors_count']['効能・効果'] += len(indication_texts)
         
         if indication_texts:
             clinical_info['indications'] = indication_texts
@@ -135,7 +138,10 @@ class PMDAJSONGenerator:
             if text and text not in seen_dosages:  # 空でなく、重複していなければ取得
                 dosage_texts.append(text)
                 seen_dosages.add(text)
-                self.statistics['vectors_count']['用法・用量'] += 1
+        
+        # 統計情報は最終的な配列の長さで更新
+        if dosage_texts:
+            self.statistics['vectors_count']['用法・用量'] += len(dosage_texts)
         
         if dosage_texts:
             clinical_info['dosage'] = dosage_texts
@@ -163,7 +169,7 @@ class PMDAJSONGenerator:
             if text and text not in seen_warnings:  # 空でなく、重複していなければ取得
                 warning_texts.append(text)
                 seen_warnings.add(text)
-                self.statistics['vectors_count']['警告'] += 1
+                self.statistics['vectors_count']['警告・注意'] += 1
         
         if warning_texts:
             clinical_info['warnings'] = warning_texts
@@ -196,7 +202,7 @@ class PMDAJSONGenerator:
         if interaction_texts:
             clinical_info['interactions'] = interaction_texts
         
-        # BRD_DrugのIDを推定
+        # BRD_DrugのIDを推定（複数医薬品対応）
         brand_id = None
         if brand_info and isinstance(brand_info, dict) and brand_info.get('yj_code'):
             # YJコードからBRD_DrugのIDを推定
@@ -227,10 +233,13 @@ class PMDAJSONGenerator:
             if text and text not in seen_compositions:  # 空でなく、重複していなければ取得
                 composition_texts.append(text)
                 seen_compositions.add(text)
-                self.statistics['vectors_count']['組成'] += 1
+        
+        # 統計情報は最終的な配列の長さで更新
+        if composition_texts:
+            self.statistics['vectors_count']['成分・含量'] += len(composition_texts)
         
         if composition_texts:
-            clinical_info['composition'] = composition_texts
+            clinical_info['compositions'] = composition_texts
         
         # 有効成分詳細情報 - PhyschemOfActIngredientsから物理化学的情報のみを取得
         active_ingredient_data = parse_active_ingredients(file_path, brand_id)
@@ -239,7 +248,7 @@ class PMDAJSONGenerator:
         # 物理化学的情報（一般名、化学名、分子式、分子量、性状等）のみを抽出
         filtered_active_ingredients = []
         for ingredient in active_ingredient_data:
-            # 不要なフィールドを除外
+            # 不要なフィールドを除外（組成データと重複するため）
             filtered_ingredient = {k: v for k, v in ingredient.items() 
                                  if k not in ['ingredient_name', 'content_amount']}
             
@@ -254,7 +263,7 @@ class PMDAJSONGenerator:
         # 臨床情報を設定
         medicine_data['clinical_info'] = clinical_info
         
-        # 各医療情報項目を持つ医薬品数をカウント
+        # 各医療情報項目を持つ医薬品数をカウント（統計情報更新）
         if clinical_info.get('indications'):
             self.statistics['medicines_with_clinical_info']['効能・効果'] += 1
         if clinical_info.get('dosage'):
@@ -267,10 +276,10 @@ class PMDAJSONGenerator:
             self.statistics['medicines_with_clinical_info']['副作用'] += 1
         if clinical_info.get('interactions'):
             self.statistics['medicines_with_clinical_info']['相互作用'] += 1
-        if clinical_info.get('composition'):
+        if clinical_info.get('compositions'):
             self.statistics['medicines_with_clinical_info']['成分・含量'] += 1
         
-        # 古いvectorsキーを削除
+        # 古いvectorsキーを削除（後方互換性のため）
         if 'vectors' in medicine_data:
             del medicine_data['vectors']
         
@@ -296,6 +305,7 @@ class PMDAJSONGenerator:
         if not os.path.exists(xml_sgml_path):
             raise ValueError(f"SGML_XMLディレクトリが見つかりません: {xml_sgml_path}")
         
+        # 全てのXML/SGMLファイルを検索
         all_files = []
         for root, _, files in os.walk(xml_sgml_path):
             for file in files:
@@ -305,7 +315,7 @@ class PMDAJSONGenerator:
         self.statistics['total_files_found'] = len(all_files)
         print(f"   発見されたファイル数: {self.statistics['total_files_found']}")
         
-        # 2. 重複ファイルの除去
+        # 2. 重複ファイルの除去（SHA-256ハッシュベース）
         print("2. 重複ファイル除去中...")
         _ = find_duplicate_files(xml_sgml_path, ['.xml', '.sgml'])
         
@@ -317,11 +327,12 @@ class PMDAJSONGenerator:
         print(f"   重複ファイル数: {self.statistics['duplicate_files']}")
         print(f"   処理対象ファイル数: {len(unique_files)}")
         
-        # 3. 各ファイルの処理
+        # 3. 各ファイルの処理（医薬品データ抽出）
         print("3. 医薬品データ処理中...")
         all_medicines = []
         
         for i, file_path in enumerate(unique_files):
+            # 進捗表示（100件ごと）
             if i % 100 == 0:
                 print(f"   進捗: {i}/{len(unique_files)} ({i/len(unique_files)*100:.1f}%)")
             
@@ -352,11 +363,11 @@ class PMDAJSONGenerator:
         if output_dir:  # ディレクトリが指定されている場合のみ作成
             os.makedirs(output_dir, exist_ok=True)
         
-        # JSON出力
+        # JSON出力（UTF-8エンコーディング、インデント付き）
         with open(self.output_file, 'w', encoding='utf-8') as f:
             json.dump(medicines, f, ensure_ascii=False, indent=2)
         
-        # ファイルサイズを取得
+        # ファイルサイズを取得・表示
         file_size = os.path.getsize(self.output_file)
         file_size_mb = file_size / (1024 * 1024)
         
@@ -372,20 +383,67 @@ class PMDAJSONGenerator:
         print(f"重複ファイル数: {self.statistics['duplicate_files']:,}")
         print(f"処理成功ファイル数: {self.statistics['processed_files']:,}")
         print(f"処理エラーファイル数: {self.statistics['error_files']:,}")
-        print(f"医薬品数: {self.statistics['medicines_count']:,}")
+        print(f"生成された医薬品エントリー数: {self.statistics['medicines_count']:,}")
         print(f"処理時間: {self.statistics['processing_time']:.2f}秒")
+        
+        # 処理速度の計算
+        if self.statistics['processing_time'] > 0:
+            files_per_second = self.statistics['processed_files'] / self.statistics['processing_time']
+            medicines_per_second = self.statistics['medicines_count'] / self.statistics['processing_time']
+            print(f"処理速度: {files_per_second:.1f}ファイル/秒, {medicines_per_second:.1f}医薬品エントリー/秒")
         
         print("\n=== 抽出された臨床情報 ===")
         total_clinical_data = sum(self.statistics['vectors_count'].values())
+        
+        # 日本語名と英語名のマッピング
+        info_type_display = {
+            '効能・効果': '効能・効果 (indications)',
+            '用法・用量': '用法・用量 (dosage)',
+            '禁忌': '禁忌 (contraindications)',
+            '警告・注意': '警告・注意 (warnings)',
+            '副作用': '副作用 (side_effects)',
+            '相互作用': '相互作用 (interactions)',
+            '成分・含量': '成分・含量 (compositions)',
+            '有効成分': '有効成分 (active_ingredients)'
+        }
+        
+        # 日本語文字幅を考慮した表示幅計算
+        def get_display_width(text):
+            """日本語文字を考慮した表示幅を計算"""
+            width = 0
+            for char in text:
+                if ord(char) > 127:  # 日本語文字
+                    width += 2
+                else:  # 英数字
+                    width += 1
+            return width
+        
+        max_width = max(get_display_width(info_type_display.get(k, k)) for k in self.statistics['vectors_count'].keys())
+        max_width = max(max_width, get_display_width('総臨床情報数'))
+        
         for info_type, count in sorted(self.statistics['vectors_count'].items()):
-            print(f"{info_type}: {count:,}件")
-        print(f"総臨床情報数: {total_clinical_data:,}件")
+            display_name = info_type_display.get(info_type, info_type)
+            current_width = get_display_width(display_name)
+            padding = max_width - current_width
+            print(f"{display_name}{' ' * padding}: {count:>8,}件")
+        
+        total_width = get_display_width('総臨床情報数')
+        total_padding = max_width - total_width
+        print(f"{'総臨床情報数'}{' ' * total_padding}: {total_clinical_data:>8,}件")
         
         print("\n=== 医療情報種別毎の医薬品数 ===")
         total_medicines = self.statistics['medicines_count']
+        
+        # 最長の項目名の長さを計算（「を持つ医薬品」を含む、日本語文字幅考慮）
+        max_medicine_width = max(get_display_width(info_type_display.get(k, k) + 'を持つ医薬品') for k in self.statistics['medicines_with_clinical_info'].keys())
+        
         for info_type, count in sorted(self.statistics['medicines_with_clinical_info'].items()):
             percentage = (count / total_medicines * 100) if total_medicines > 0 else 0
-            print(f"{info_type}を持つ医薬品: {count:,}件 ({percentage:.1f}%)")
+            display_name = info_type_display.get(info_type, info_type)
+            full_label = f"{display_name}を持つ医薬品"
+            current_width = get_display_width(full_label)
+            padding = max_medicine_width - current_width
+            print(f"{full_label}{' ' * padding}: {count:>8,}件 ({percentage:>5.1f}%)")
         
         # 全ての医療情報を持つ医薬品数
         medicines_with_all_info = 0
@@ -400,7 +458,7 @@ class PMDAJSONGenerator:
     
     def generate(self):
         """
-        全体の生成処理を実行する
+        全体の生成処理を実行する（メイン処理）
         """
         try:
             # 医薬品データを処理

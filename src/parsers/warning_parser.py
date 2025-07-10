@@ -134,6 +134,7 @@ def parse_warnings(file_path: str) -> List[Dict[str, str]]:
         # 名前空間を登録
         register_xml_namespaces()
         
+        # XMLファイルをパースして警告・注意事項を抽出
         tree = ET.parse(file_path)
         root = tree.getroot()
         parser = WarningParser(root)

@@ -192,7 +192,7 @@ class SideEffectParser:
             serious_adverse_elements = adverse_events_element.findall('.//pmda:SeriousAdverseEvents', namespaces=self.namespace)
             other_adverse_elements = adverse_events_element.findall('.//pmda:OtherAdverseEvents', namespaces=self.namespace)
             
-            # 重大な副作用の処理
+            # 重大な副作用の処理（SeriousAdverseEventsセクション）
             for serious_adverse in serious_adverse_elements:
                 item_elements = serious_adverse.findall('.//pmda:Item', namespaces=self.namespace)
                 
@@ -205,7 +205,7 @@ class SideEffectParser:
                         if not any(existing['text'] == side_effect['text'] for existing in side_effects):
                             side_effects.append(side_effect)
             
-            # その他の副作用の処理
+            # その他の副作用の処理（OtherAdverseEventsセクション）
             for other_adverse in other_adverse_elements:
                 # Instructions内のItem要素から条件を取得
                 instruction_items = other_adverse.findall('.//pmda:Instructions/pmda:SimpleList/pmda:Item', namespaces=self.namespace)
@@ -261,6 +261,7 @@ def parse_side_effects(file_path: str) -> List[Dict[str, str]]:
         # 名前空間を登録
         register_xml_namespaces()
         
+        # XMLファイルをパースして副作用情報を抽出
         tree = ET.parse(file_path)
         root = tree.getroot()
         parser = SideEffectParser(root)

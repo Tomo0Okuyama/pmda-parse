@@ -59,11 +59,11 @@ def extract_clean_text(element: Optional[ET.Element]) -> str:
     # 要素内のすべてのテキストを結合
     full_text = "".join(element.itertext())
     
-    # XMLマーカーを削除
+    # XMLマーカーを削除（<?enter?>を改行に変換）
     full_text = full_text.replace('<?enter?>', '\n')
     
     # HTMLタグを適切に処理
-    # <Italic>タグの処理
+    # <Italic>タグの処理（斜体マーカーを削除）
     full_text = re.sub(r'<Italic>(.*?)</Italic>', r'\1', full_text)
     
     # <Sub>タグの処理（下付き文字）
@@ -180,7 +180,7 @@ def is_valid_medical_text(text: str, min_length: int = 2, max_length: int = 1000
     
     cleaned_text = text.strip()
     
-    # 長さチェック
+    # 長さチェック（医療情報として適切な長さかを判定）
     if len(cleaned_text) < min_length or len(cleaned_text) > max_length:
         return False
     

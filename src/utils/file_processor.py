@@ -42,7 +42,7 @@ def find_duplicate_files(directory: str, extensions: List[str] = ['.pdf', '.xml'
                 file_hash = calculate_file_hash(filepath)
                 
                 if file_hash in file_hashes:
-                    # 重複ファイルを見つけた場合
+                    # 重複ファイルを見つけた場合（同一内容のファイル）
                     if file_hash not in duplicates:
                         duplicates[file_hash] = [file_hashes[file_hash]]
                     duplicates[file_hash].append(filepath)
@@ -77,7 +77,7 @@ def detect_parse_candidates(directory: str,
                 filepath = os.path.join(root, filename)
                 
                 if ignore_duplicates:
-                    # 重複ファイルの場合、最初のファイルのみを追加
+                    # 重複ファイルの場合、最初のファイルのみを追加（処理効率化）
                     file_hash = calculate_file_hash(filepath)
                     if file_hash not in processed_hashes:
                         candidates.append((filepath, filename))
@@ -98,7 +98,7 @@ def main():
         for file in files:
             print(f"  - {file}")
     
-    # パース対象XMLファイルの検出
+    # パース対象XMLファイルの検出（重複除去済み）
     print("\nパース対象XMLファイルの検出:")
     candidates = detect_parse_candidates(base_dir)
     for filepath, filename in candidates:

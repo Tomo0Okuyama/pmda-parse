@@ -316,15 +316,15 @@ def parse_compositions(file_path: str, brand_id: Optional[str] = None) -> List[D
         # 新しい構造化データを取得
         structured_data = parse_compositions_structured(file_path, brand_id)
         
-        # 古いフォーマットに変換
+        # 古いフォーマットに変換（後方互換性のため）
         compositions = []
         
-        # 有効成分
+        # 有効成分を旧フォーマットに変換
         for ingredient in structured_data["active_ingredients"]:
             text = f"{ingredient['ingredient_name']}: {ingredient['value_and_unit']}"
             compositions.append({"text": text})
         
-        # 添加物
+        # 添加物を旧フォーマットに変換
         for additive in structured_data["additives"]:
             if additive['value_and_unit']:
                 text = f"添加物: {additive['individual_additive']}: {additive['value_and_unit']}"
@@ -332,7 +332,7 @@ def parse_compositions(file_path: str, brand_id: Optional[str] = None) -> List[D
                 text = f"添加物: {additive['individual_additive']}"
             compositions.append({"text": text})
         
-        # その他成分
+        # その他成分を旧フォーマットに変換
         for other in structured_data["other_components"]:
             if other['category_name']:
                 text = f"{other['category_name']}: {other['content_title']}"
@@ -365,6 +365,7 @@ def parse_compositions_structured(file_path: str, brand_id: Optional[str] = None
         # 名前空間を登録
         register_xml_namespaces()
         
+        # XMLファイルをパースして成分・含量情報を抽出
         tree = ET.parse(file_path)
         root = tree.getroot()
         parser = CompositionParser(root, brand_id, file_path)

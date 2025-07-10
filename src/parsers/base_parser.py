@@ -103,6 +103,7 @@ class MedicineParser:
             formulation = self._safe_find_text('./pmda:Formulation/pmda:Lang[@xml:lang="ja"]', property_table)
             color_tone = self._safe_find_text('./pmda:ColorTone/pmda:Lang[@xml:lang="ja"]', property_table)
             
+            # 剤形と色調の組み合わせが最も詳細な情報
             if formulation and color_tone:
                 return f"{formulation}:{color_tone}"
             elif formulation:
@@ -166,7 +167,7 @@ class MedicineParser:
         fallback_manufacturer = None
         
         for manufacturer in manufacturers:
-            # 企業名を取得
+            # 企業名を取得（役割プレフィックスを除去して企業名のみ）
             name_element = manufacturer.find('.//pmda:Name/pmda:Lang[@xml:lang="ja"]', self.namespace)
             name = name_element.text.strip() if name_element is not None and name_element.text else ""
             
@@ -226,6 +227,7 @@ def parse_medicine_files(directory: str, output_file: str):
     """
     all_medicines = []
 
+    # ディレクトリ内のXMLファイルを再帰的に検索
     for root, _, files in os.walk(directory):
         for filename in files:
             if filename.endswith(('.xml', '.sgml')):
@@ -237,7 +239,7 @@ def parse_medicine_files(directory: str, output_file: str):
                 except Exception as e:
                     print(f"Error parsing {filename}: {e}")
 
-    # JSONファイルに出力
+    # 結果をJSONファイルに出力
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(all_medicines, f, ensure_ascii=False, indent=2)
 

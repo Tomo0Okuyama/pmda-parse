@@ -33,7 +33,7 @@ class InteractionParser:
             drug_elements = combination_element.findall('.//pmda:Drug', namespaces=self.namespace)
             
             for drug in drug_elements:
-                # 薬剤名を取得
+                # 薬剤名を取得（併用注意の対象薬剤）
                 drug_name_elements = drug.findall('.//pmda:DrugName/pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
                 
                 for drug_name in drug_name_elements:
@@ -42,7 +42,7 @@ class InteractionParser:
                             'text': drug_name.text.strip(),
                         })
                 
-                # 臨床症状・措置方法を取得
+                # 臨床症状・措置方法を取得（併用時の症状と対処法）
                 symptoms_elements = drug.findall('.//pmda:ClinSymptomsAndMeasures/pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
                 
                 for symptoms in symptoms_elements:
@@ -51,7 +51,7 @@ class InteractionParser:
                             'text': f"臨床症状・措置: {symptoms.text.strip()}",
                         })
                 
-                # 機序・危険因子を取得
+                # 機序・危険因子を取得（相互作用のメカニズム）
                 mechanism_elements = drug.findall('.//pmda:MechanismAndRiskFactors/pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
                 
                 for mechanism in mechanism_elements:
@@ -94,6 +94,7 @@ def parse_interactions(file_path: str) -> List[Dict[str, str]]:
         # 名前空間を登録
         register_xml_namespaces()
         
+        # XMLファイルをパースして相互作用情報を抽出
         tree = ET.parse(file_path)
         root = tree.getroot()
         parser = InteractionParser(root)

@@ -31,7 +31,7 @@ class DosageParser:
         Returns:
             str: 条件付きのテキスト
         """
-        # 条件ヘッダーがある場合はそれを使用
+        # 条件ヘッダーがある場合はそれを使用（疾患:対象者:用法 形式）
         if condition_header and condition_header.strip():
             return f"{condition_header}:{text}"
         
@@ -55,7 +55,7 @@ class DosageParser:
         # 現在のItemの条件ヘッダーを取得
         current_condition = extract_condition_header(item_element, self.namespace)
         
-        # 親条件と結合
+        # 親条件と結合（階層構造を維持）
         if parent_condition and current_condition:
             combined_condition = f"{parent_condition}:{current_condition}"
         elif parent_condition:
@@ -76,7 +76,7 @@ class DosageParser:
                     'text': formatted_text,
                 })
         
-        # ネストしたSimpleList/Item要素を処理
+        # ネストしたSimpleList/Item要素を再帰的に処理
         nested_items = item_element.findall('./pmda:SimpleList/pmda:Item', namespaces=self.namespace)
         for nested_item in nested_items:
             dosages.extend(self._process_nested_items(nested_item, combined_condition))
@@ -115,7 +115,7 @@ class DosageParser:
             # TblBlockの数もチェック（複数のテーブルがある場合）
             tbl_blocks = info_dose_admin.findall('.//pmda:TblBlock', namespaces=self.namespace)
             
-            # 2つ以上の投与法がある、または複数のテーブルがある場合
+            # 2つ以上の投与法がある、または複数のテーブルがある場合（抗癌剤等）
             return len(set(methods)) >= 2 or len(tbl_blocks) >= 2
             
         except Exception:
@@ -223,7 +223,7 @@ class DosageParser:
             if detail.text:
                 all_text += detail.text + " "
         
-        # 投与法別に分離
+        # 投与法別に分離（正規表現パターンマッチング）
         methods = re.findall(method_pattern, all_text, re.DOTALL)
         
         for method_name, method_detail in methods:
@@ -246,7 +246,7 @@ class DosageParser:
                             dosage_by_bsa = self._parse_complex_dosage_table(simple_table)
                             break
             
-            # 投与法の詳細情報を構築
+            # 投与法の詳細情報を構築（体表面積情報を含む）
             if dosage_by_bsa:
                 bsa_info = "、".join(dosage_by_bsa)
                 dosage_text = f"{method_name}:{schedule_text}/体表面積{bsa_info}"
@@ -288,7 +288,7 @@ class DosageParser:
             if cell_text:
                 headers.append(cell_text)
         
-        # データ行を処理
+        # データ行を処理（造影剤等の医療手技別用量テーブル）
         for row in rows[1:]:  # ヘッダー行をスキップ
             cells = row.findall('./pmda:SimpTblCell', namespaces=self.namespace)
             
@@ -314,7 +314,7 @@ class DosageParser:
                     else:
                         dosage_info.append(cell_text)
             
-            # 手技名と用量情報を組み合わせて構造化
+            # 手技名と用量情報を組み合わせて構造化（例：脳血管撮影 → イオパミドール300注「F」:6～13mL）
             if dosage_info:
                 combined_info = f"{procedure_name} → {' / '.join(dosage_info)}"
                 dosage_entries.append(combined_info)
@@ -366,11 +366,11 @@ class DosageParser:
             dose_admin_elements = info_dose_admin.findall('.//pmda:DoseAdmin', namespaces=self.namespace)
             
             for dose_admin in dose_admin_elements:
-                # テーブル構造があるかチェック
+                # テーブル構造があるかチェック（造影剤等の医療手技別用量テーブル）
                 tbl_blocks = dose_admin.findall('.//pmda:TblBlock', namespaces=self.namespace)
                 
                 if tbl_blocks:
-                    # テーブル構造がある場合
+                    # テーブル構造がある場合（造影剤等の医療手技別用量テーブル）
                     # まず基本的な説明文を抽出
                     base_detail_elements = dose_admin.findall('./pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
                     for detail in base_detail_elements:
@@ -457,6 +457,7 @@ def parse_dosages(file_path: str) -> List[Dict[str, str]]:
         # 名前空間を登録
         register_xml_namespaces()
         
+        # XMLファイルをパースして用法・用量を抽出
         tree = ET.parse(file_path)
         root = tree.getroot()
         parser = DosageParser(root, file_path)  # ファイルパスを渡して特殊処理判定用

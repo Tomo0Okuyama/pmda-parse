@@ -43,7 +43,7 @@ class IndicationParser:
                             'text': text,
                         })
         
-        # TherapeuticClassificationからも薬効分類名を取得
+        # TherapeuticClassificationからも薬効分類名を取得（補助的な効能情報）
         therapeutic_elements = self.root.findall('.//pmda:TherapeuticClassification/pmda:Detail/pmda:Lang[@xml:lang="ja"]', namespaces=self.namespace)
         
         for element in therapeutic_elements:
@@ -56,7 +56,7 @@ class IndicationParser:
         # GenericNameは薬剤の一般名であり、効能・効果ではないため除外
         # （効能・効果は主にIndicationsOrEfficacyセクションに記載される）
         
-        # 重複除去
+        # 重複除去（同一テキストの重複を除去）
         return remove_duplicates_by_key(indications, 'text')
 
 def parse_indications(file_path: str) -> List[Dict[str, str]]:
@@ -73,6 +73,7 @@ def parse_indications(file_path: str) -> List[Dict[str, str]]:
         # 名前空間を登録
         register_xml_namespaces()
         
+        # XMLファイルをパースして効能・効果を抽出
         tree = ET.parse(file_path)
         root = tree.getroot()
         parser = IndicationParser(root)

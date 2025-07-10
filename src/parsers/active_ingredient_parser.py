@@ -103,7 +103,7 @@ class ActiveIngredientParser:
                     ingredient_info['pka'] = pka_text
             
             
-            # 情報が含まれている場合のみ追加
+            # 有効成分情報が含まれている場合のみ追加
             if ingredient_info:
                 active_ingredients.append(ingredient_info)
         
@@ -134,7 +134,7 @@ class ActiveIngredientParser:
                             if content_text is not None and content_text.strip():
                                 ingredient_info['content_amount'] = content_text.strip()
                         
-                        # 重複チェック
+                        # 重複チェック（既存の有効成分情報と同じ名前でないか確認）
                         if not any(ai.get('ingredient_name') == ingredient_info['ingredient_name'] for ai in active_ingredients):
                             active_ingredients.append(ingredient_info)
         
@@ -156,6 +156,7 @@ def parse_active_ingredients(file_path: str, brand_id: str | None = None) -> Lis
         # 名前空間を登録
         register_xml_namespaces()
         
+        # XMLファイルをパースして有効成分情報を抽出
         tree = ET.parse(file_path)
         root = tree.getroot()
         parser = ActiveIngredientParser(root, brand_id)
