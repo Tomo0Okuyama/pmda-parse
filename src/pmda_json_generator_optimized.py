@@ -240,45 +240,66 @@ class PMDAJSONGeneratorOptimized:
             for medicine in batch_medicines:
                 clinical_info = medicine.get('clinical_info', {})
                 
+                # 全種類の医療情報を持つかチェック（有効成分は除く）
+                has_all_info_types = True
+                
                 # 効能・効果
                 if clinical_info.get('indications'):
                     self.statistics['medicines_with_clinical_info']['indications'] += 1
                     self.statistics['vectors_count']['indications'] += len(clinical_info['indications'])
+                else:
+                    has_all_info_types = False
                 
                 # 用法・用量
                 if clinical_info.get('dosage'):
                     self.statistics['medicines_with_clinical_info']['dosage'] += 1
                     self.statistics['vectors_count']['dosage'] += len(clinical_info['dosage'])
+                else:
+                    has_all_info_types = False
                 
                 # 禁忌
                 if clinical_info.get('contraindications'):
                     self.statistics['medicines_with_clinical_info']['contraindications'] += 1
                     self.statistics['vectors_count']['contraindications'] += len(clinical_info['contraindications'])
+                else:
+                    has_all_info_types = False
                 
                 # 警告・注意事項
                 if clinical_info.get('warnings'):
                     self.statistics['medicines_with_clinical_info']['warnings'] += 1
                     self.statistics['vectors_count']['warnings'] += len(clinical_info['warnings'])
+                else:
+                    has_all_info_types = False
                 
                 # 副作用
                 if clinical_info.get('side_effects'):
                     self.statistics['medicines_with_clinical_info']['side_effects'] += 1
                     self.statistics['vectors_count']['side_effects'] += len(clinical_info['side_effects'])
+                else:
+                    has_all_info_types = False
                 
                 # 相互作用
                 if clinical_info.get('interactions'):
                     self.statistics['medicines_with_clinical_info']['interactions'] += 1
                     self.statistics['vectors_count']['interactions'] += len(clinical_info['interactions'])
+                else:
+                    has_all_info_types = False
                 
                 # 成分・含量
                 if clinical_info.get('compositions'):
                     self.statistics['medicines_with_clinical_info']['compositions'] += 1
                     self.statistics['vectors_count']['compositions'] += len(clinical_info['compositions'])
+                else:
+                    has_all_info_types = False
                 
-                # 有効成分
+                # 有効成分（全種類の計算には含めない）
                 if clinical_info.get('active_ingredients'):
                     self.statistics['medicines_with_clinical_info']['active_ingredients'] += 1
                     self.statistics['vectors_count']['active_ingredients'] += len(clinical_info['active_ingredients'])
+                
+                # 全種類の医療情報を持つ医薬品をカウント
+                if has_all_info_types:
+                    self.statistics['medicines_with_clinical_info']['all_types'] += 1
     
     def generate_json_optimized(self):
         """
@@ -480,7 +501,12 @@ class PMDAJSONGeneratorOptimized:
         # システムリソース効率
         print(f"\n=== システムリソース効率 ===")
         print(f"CPU使用効率: {(self.statistics['parallel_workers'] / self.system_info['cpu_count']) * 100:.1f}%")
-        print(f"推定メモリ使用量: {(self.statistics['batch_count'] * self.memory_limit_mb) / 1024:.1f}GB")
+        
+        # 実際のメモリ使用量推定（並列ワーカー数ベース）
+        estimated_worker_memory_mb = 200  # 1ワーカーあたりの推定メモリ使用量(MB)
+        estimated_total_memory_gb = (self.statistics['parallel_workers'] * estimated_worker_memory_mb) / 1024
+        print(f"推定メモリ使用量: {estimated_total_memory_gb:.1f}GB（ワーカー{self.statistics['parallel_workers']}個 × {estimated_worker_memory_mb}MB）")
+        print(f"メモリ制限設定: {self.memory_limit_mb}MB（バッチサイズ計算用）")
         
         # 抽出された臨床情報の詳細
         print("\n=== 抽出された臨床情報 ===")
@@ -547,9 +573,8 @@ class PMDAJSONGeneratorOptimized:
             print(f"{display_name}{' ' * padding}: {count:8,}件 ({percentage:5.1f}%)")
         
         # 全種類の医療情報を持つ医薬品数を計算
-        if self.statistics['medicines_with_clinical_info']:
-            min_count = min(self.statistics['medicines_with_clinical_info'].values())
-            print(f"\n全種類の医療情報を持つ医薬品: {min_count:,}件")
+        medicines_with_all_info = self.statistics['medicines_with_clinical_info'].get('all_types', 0)
+        print(f"\n全種類の医療情報を持つ医薬品: {medicines_with_all_info:,}件")
 
 def find_pmda_directories() -> List[str]:
     """

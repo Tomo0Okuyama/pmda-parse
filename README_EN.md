@@ -332,9 +332,8 @@ Pharmaceutical generation speed: 790.50 medicines/sec
 
 ```json
 {
-  "product_id": "670109_7219412A8082_1_04",
-  "product_name": "Candesartan Tablets 8mg \"DSEP\"",
   "yj_code": "2149040F3061",
+  "product_name": "Candesartan Tablets 8mg \"DSEP\"",
   "form": "Sustained-release angiotensin II receptor antagonist",
   "manufacturer_code": "430773",
   "manufacturer_name": "Daiichi Sankyo Espha Co., Ltd.", 

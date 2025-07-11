@@ -208,9 +208,8 @@ class MedicineParser:
             Dict[str, Union[str, List[Dict[str, str]]]]: JSONフォーマットの医薬品情報
         """
         return {
-            'product_id': self.extract_product_id() or '',
-            'product_name': self.extract_product_name() or '',
             'yj_code': self.extract_yj_code() or '',
+            'product_name': self.extract_product_name() or '',
             'form': self.extract_form() or '',
             'manufacturer_code': self.extract_manufacturer_code() or '',
             'manufacturer_name': self.extract_manufacturer_name() or '',

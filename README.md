@@ -295,9 +295,8 @@ XMLパース削減率: 88.9%
 
 ```json
 {
-  "product_id": "670109_7219412A8082_1_04",
-  "product_name": "カンデサルタン錠8mg「DSEP」",
   "yj_code": "2149040F3061",
+  "product_name": "カンデサルタン錠8mg「DSEP」",
   "form": "持続性アンジオテンシンⅡ受容体拮抗剤",
   "manufacturer_code": "430773",
   "manufacturer_name": "第一三共エスファ株式会社", 
@@ -423,17 +422,6 @@ XMLパース削減率: 88.9%
 2. `BaseParser`クラスを継承（推奨）
 3. `pmda_json_generator.py`でパーサーを呼び出し
 
-### テスト・検証
-
-```bash
-# パーサー機能テスト
-python test_nested_dosage.py
-python test_side_effects.py
-
-# バージョン間整合性確認
-# 両バージョンが同一結果を出力することを確認済み
-```
-
 ### コマンドライン引数
 
 #### 通常版
@@ -444,7 +432,7 @@ python src/pmda_json_generator.py <pmda_directory> [--output OUTPUT_FILE]
 #### 最適化版
 ```bash
 python src/pmda_json_generator_optimized.py [OPTIONS]
-  --input, -i          PMDAデータディレクトリ（デフォルト: pmda_all_20250709）
+  --input, -i          PMDAデータディレクトリ（デフォルト: pmda_all_yyyymmdd）
   --output, -o         出力JSONファイル（デフォルト: pmda_medicines_optimized.json）
   --workers, -w        並列ワーカー数（デフォルト: CPU数と16の小さい方）
   --batch-size, -b     バッチサイズ（デフォルト: 自動計算）

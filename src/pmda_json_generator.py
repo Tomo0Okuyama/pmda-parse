@@ -81,9 +81,8 @@ class PMDAJSONGenerator:
             for brand in all_brands:
                 # 各医薬品に対してJSONエントリを作成
                 medicine_data = {
-                    'product_id': base_parser.extract_product_id() or '',
-                    'product_name': brand['product_name'],
                     'yj_code': brand['yj_code'],
+                    'product_name': brand['product_name'],
                     'form': base_parser.extract_form() or '',
                     'manufacturer_code': base_parser.extract_manufacturer_code() or '',
                     'manufacturer_name': base_parser.extract_manufacturer_name() or '',
@@ -280,20 +279,48 @@ class PMDAJSONGenerator:
         medicine_data['clinical_info'] = clinical_info
         
         # 各医療情報項目を持つ医薬品数をカウント（統計情報更新）
+        has_all_info_types = True
+        
         if clinical_info.get('indications'):
             self.statistics['medicines_with_clinical_info']['indications'] += 1
+        else:
+            has_all_info_types = False
+            
         if clinical_info.get('dosage'):
             self.statistics['medicines_with_clinical_info']['dosage'] += 1
+        else:
+            has_all_info_types = False
+            
         if clinical_info.get('contraindications'):
             self.statistics['medicines_with_clinical_info']['contraindications'] += 1
+        else:
+            has_all_info_types = False
+            
         if clinical_info.get('warnings'):
             self.statistics['medicines_with_clinical_info']['warnings'] += 1
+        else:
+            has_all_info_types = False
+            
         if clinical_info.get('side_effects'):
             self.statistics['medicines_with_clinical_info']['side_effects'] += 1
+        else:
+            has_all_info_types = False
+            
         if clinical_info.get('interactions'):
             self.statistics['medicines_with_clinical_info']['interactions'] += 1
+        else:
+            has_all_info_types = False
+            
         if clinical_info.get('compositions'):
             self.statistics['medicines_with_clinical_info']['compositions'] += 1
+        else:
+            has_all_info_types = False
+            
+        # 有効成分は全種類の計算には含めない（医薬品によっては存在しない場合があるため）
+        
+        # 全種類の医療情報を持つ医薬品をカウント
+        if has_all_info_types:
+            self.statistics['medicines_with_clinical_info']['all_types'] += 1
         
         # 古いvectorsキーを削除（後方互換性のため）
         if 'vectors' in medicine_data:
@@ -475,10 +502,7 @@ class PMDAJSONGenerator:
             print(f"{display_name}{' ' * padding}: {count:8,}件 ({percentage:5.1f}%)")
         
         # 全ての医療情報を持つ医薬品数
-        medicines_with_all_info = 0
-        if self.statistics['medicines_with_clinical_info']:
-            min_count = min(self.statistics['medicines_with_clinical_info'].values())
-            medicines_with_all_info = min_count
+        medicines_with_all_info = self.statistics['medicines_with_clinical_info'].get('all_types', 0)
         
         print(f"\n全種類の医療情報を持つ医薬品: {medicines_with_all_info:,}件")
         
