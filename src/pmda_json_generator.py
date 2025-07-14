@@ -82,6 +82,7 @@ class PMDAJSONGenerator:
                 # 各医薬品に対してJSONエントリを作成
                 medicine_data = {
                     'yj_code': brand['yj_code'],
+                    'therapeutic_classification': base_parser.extract_therapeutic_classification() or '',
                     'product_name': brand['product_name'],
                     'form': base_parser.extract_form() or '',
                     'manufacturer_code': base_parser.extract_manufacturer_code() or '',

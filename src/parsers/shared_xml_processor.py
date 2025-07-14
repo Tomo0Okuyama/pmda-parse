@@ -50,6 +50,7 @@ class SharedXMLProcessor:
             Dict[str, Any]: 基本医薬品情報
         """
         return {
+            'therapeutic_classification': self.base_parser.extract_therapeutic_classification() or '',
             'form': self.base_parser.extract_form() or '',
             'manufacturer_code': self.base_parser.extract_manufacturer_code() or '',
             'manufacturer_name': self.base_parser.extract_manufacturer_name() or '',
@@ -187,6 +188,7 @@ class SharedXMLProcessor:
             # 各医薬品に対してJSONエントリを作成
             medicine_data = {
                 'yj_code': brand['yj_code'],
+                'therapeutic_classification': basic_info['therapeutic_classification'],
                 'product_name': brand['product_name'],
                 'form': basic_info['form'],
                 'manufacturer_code': basic_info['manufacturer_code'],

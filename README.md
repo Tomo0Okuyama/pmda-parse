@@ -9,9 +9,9 @@ PMDAが公開している医薬品情報ファイル（XML/SGML）から医療�
 ### 抽出される情報
 
 **必須情報:**
-- 製品ID
+- YJコード（最優先、先頭配置）
+- 薬効分類名（therapeutic_classification）
 - 製品名称
-- YJコード
 - 剤形（Formulation:ColorTone形式または性状情報）
 - 製造元（企業コードと企業名）
 - ソースファイル名
@@ -185,6 +185,9 @@ python src/pmda_json_generator_optimized.py --input pmda_all_20250709 --output c
 
 # メモリ制限とバッチサイズ指定
 python src/pmda_json_generator_optimized.py --memory-limit 4096 --batch-size 200
+
+# デバッグモード: 単一XMLファイルをパースして結果を標準出力
+python src/pmda_json_generator_optimized.py path/to/file.xml
 ```
 
 ### 実行例
@@ -296,8 +299,9 @@ XMLパース削減率: 88.9%
 ```json
 {
   "yj_code": "2149040F3061",
+  "therapeutic_classification": "持続性アンジオテンシンⅡ受容体拮抗剤",
   "product_name": "カンデサルタン錠8mg「DSEP」",
-  "form": "持続性アンジオテンシンⅡ受容体拮抗剤",
+  "form": "錠剤",
   "manufacturer_code": "430773",
   "manufacturer_name": "第一三共エスファ株式会社", 
   "source_filename": "430773_2149040F1069_1_10.xml",
@@ -387,9 +391,17 @@ XMLパース削減率: 88.9%
    - 企業間の記載揺れに影響されない堅牢な情報抽出
    - PMDA標準XML名前空間への完全対応
 
-8. **原値保持**
+8. **XMLフォーマットタグ対応**
+   - Sub、Sup、Italic等のXMLタグを適切に処理
+   - 薬効分類名でH<Sub>2</Sub>受容体拮抗剤→H2受容体拮抗剤として正しく抽出
+
+9. **原値保持**
    - XML/SGMLの値を分割せずに保持（例：「250国際単位」）
    - JSONの構造で意味を表現
+
+10. **デバッグ機能**
+    - 最適化版で単一XMLファイルのパース結果を標準出力に表示
+    - デバッグしやすいエラーハンドリングとトレースバック表示
 
 ## パフォーマンス
 

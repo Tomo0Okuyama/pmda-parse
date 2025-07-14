@@ -41,6 +41,50 @@ class MedicineParser:
         element = root.find(xpath, namespaces=self.namespace)
         return element.text.strip() if element is not None and element.text else None
 
+    def _extract_formatted_text(self, xpath: str, root: Optional[ET.Element] = None) -> Optional[str]:
+        """
+        XMLフォーマットタグ（Sub, Sup, Italic等）を含むテキストを抽出する
+        
+        Args:
+            xpath (str): 検索するXPath
+            root (ET.Element, optional): 検索を開始するルート要素。デフォルトはself.root
+            
+        Returns:
+            Optional[str]: フォーマットタグを処理したテキスト。見つからない場合はNone
+        """
+        if root is None:
+            root = self.root
+            
+        try:
+            found_element = root.find(xpath, namespaces=self.namespace)
+            if found_element is None:
+                return None
+            
+            # 要素内の全テキスト（子要素のテキストも含む）を再帰的に取得
+            def extract_all_text(elem):
+                text = elem.text or ''
+                for child in elem:
+                    if child.tag.endswith('Sub'):
+                        # 下付き文字：そのままテキストとして追加
+                        text += child.text or ''
+                    elif child.tag.endswith('Sup'):
+                        # 上付き文字：そのままテキストとして追加
+                        text += child.text or ''
+                    elif child.tag.endswith('Italic'):
+                        # イタリック：そのままテキストとして追加
+                        text += child.text or ''
+                    else:
+                        # その他のタグ：再帰的にテキストを取得
+                        text += extract_all_text(child)
+                    # 子要素の後のテキスト（tail）も追加
+                    text += child.tail or ''
+                return text
+            
+            result = extract_all_text(found_element)
+            return result.strip() if result else None
+        except Exception:
+            return None
+
     def extract_product_id(self) -> Optional[str]:
         """
         製品IDを抽出する
@@ -140,6 +184,15 @@ class MedicineParser:
         # TherapeuticClassificationから薬効分類を取得（最後の手段）
         return self._safe_find_text('.//pmda:TherapeuticClassification/pmda:Detail/pmda:Lang[@xml:lang="ja"]', self.root)
 
+    def extract_therapeutic_classification(self) -> Optional[str]:
+        """
+        薬効分類名を抽出する
+
+        Returns:
+            Optional[str]: 薬効分類名。見つからない場合はNone
+        """
+        return self._extract_formatted_text('.//pmda:TherapeuticClassification/pmda:Detail/pmda:Lang[@xml:lang="ja"]', self.root)
+
     def extract_manufacturer_code(self) -> Optional[str]:
         """
         製造元企業コードを抽出する
@@ -209,6 +262,7 @@ class MedicineParser:
         """
         return {
             'yj_code': self.extract_yj_code() or '',
+            'therapeutic_classification': self.extract_therapeutic_classification() or '',
             'product_name': self.extract_product_name() or '',
             'form': self.extract_form() or '',
             'manufacturer_code': self.extract_manufacturer_code() or '',

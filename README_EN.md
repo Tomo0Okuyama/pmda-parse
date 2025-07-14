@@ -21,9 +21,9 @@ This repository supports the construction of systems that allow physicians to ef
 ### Extracted Information
 
 **Essential Information:**
-- Product ID
+- YJ Code (highest priority, placed first)
+- Therapeutic Classification (therapeutic_classification)
 - Product Name
-- YJ Code
 - Dosage Form (Formulation:ColorTone format or appearance information)
 - Manufacturer (company code and company name)
 - Source filename
@@ -222,6 +222,9 @@ python src/pmda_json_generator_optimized.py --input pmda_all_20250709 --output c
 
 # Specify memory limit and batch size
 python src/pmda_json_generator_optimized.py --memory-limit 4096 --batch-size 200
+
+# Debug mode: Parse single XML file and output results to stdout
+python src/pmda_json_generator_optimized.py path/to/file.xml
 ```
 
 ### Execution Examples
@@ -333,8 +336,9 @@ Pharmaceutical generation speed: 790.50 medicines/sec
 ```json
 {
   "yj_code": "2149040F3061",
+  "therapeutic_classification": "Sustained-release angiotensin II receptor antagonist",
   "product_name": "Candesartan Tablets 8mg \"DSEP\"",
-  "form": "Sustained-release angiotensin II receptor antagonist",
+  "form": "Tablets",
   "manufacturer_code": "430773",
   "manufacturer_name": "Daiichi Sankyo Espha Co., Ltd.", 
   "source_filename": "430773_2149040F1069_1_10.xml",
@@ -430,9 +434,17 @@ Pharmaceutical generation speed: 790.50 medicines/sec
    - Robust information extraction unaffected by variations between companies
    - Full compliance with PMDA standard XML namespaces
 
-9. **Original Value Preservation**
-   - Preserves XML/SGML values without splitting (e.g., "250 international units")
-   - Expresses meaning through JSON structure
+9. **XML Formatting Tag Support**
+   - Proper handling of XML formatting tags (Sub, Sup, Italic, etc.)
+   - Correctly extracts therapeutic classifications like H<Sub>2</Sub> receptor antagonist → H2 receptor antagonist
+
+10. **Original Value Preservation**
+    - Preserves XML/SGML values without splitting (e.g., "250 international units")
+    - Expresses meaning through JSON structure
+
+11. **Debug Functionality**
+    - Single XML file parsing with results output to stdout in optimized version
+    - Debug-friendly error handling with traceback display
 
 ## Performance
 

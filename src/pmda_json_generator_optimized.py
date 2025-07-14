@@ -629,6 +629,46 @@ def auto_detect_pmda_directory() -> str:
     print(f"PMDAディレクトリを自動検出しました: {detected_dir}")
     return detected_dir
 
+def debug_single_xml(xml_file_path: str):
+    """
+    単一XMLファイルのデバッグモード - パース結果を標準出力に表示
+    
+    Args:
+        xml_file_path (str): デバッグ対象のXMLファイルパス
+    """
+    print(f"=== XMLファイル デバッグモード ===")
+    print(f"ファイル: {xml_file_path}")
+    
+    if not os.path.exists(xml_file_path):
+        print(f"エラー: ファイルが見つかりません: {xml_file_path}")
+        return 1
+    
+    if not xml_file_path.endswith(('.xml', '.sgml')):
+        print(f"エラー: XMLまたはSGMLファイルではありません: {xml_file_path}")
+        return 1
+    
+    try:
+        # SharedXMLProcessorでパース実行
+        print("\nパース処理開始...")
+        processor = SharedXMLProcessor(xml_file_path)
+        medicines_data = processor.process_all_brands()
+        
+        print(f"パース結果: {len(medicines_data)}件の医薬品データを抽出")
+        
+        # 結果をJSONとして標準出力に表示
+        for i, medicine in enumerate(medicines_data):
+            print(f"\n--- 医薬品 {i+1} ---")
+            print(json.dumps(medicine, ensure_ascii=False, indent=2))
+        
+        print(f"\n=== デバッグ完了 ===")
+        return 0
+        
+    except Exception as e:
+        print(f"エラー: パース処理中にエラーが発生しました: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
+
 def main():
     """
     メイン関数
@@ -646,7 +686,16 @@ def main():
   
   # 出力ファイルとワーカー数を指定
   python src/pmda_json_generator_optimized.py --output custom.json --workers 8
+  
+  # デバッグモード: 単一XMLファイルをパースして結果を表示
+  python src/pmda_json_generator_optimized.py path/to/file.xml
         """
+    )
+    parser.add_argument(
+        'debug_xml_file',
+        nargs='?',
+        default=None,
+        help='デバッグ用XMLファイルパス（指定時は単一ファイルをパースして結果を標準出力）'
     )
     parser.add_argument(
         '--input', '-i',
@@ -683,6 +732,10 @@ def main():
     )
     
     args = parser.parse_args()
+    
+    # デバッグモード: 単一XMLファイルが指定された場合
+    if args.debug_xml_file:
+        return debug_single_xml(args.debug_xml_file)
     
     # 入力ディレクトリの決定
     if args.input is None:
